@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.username }} • Student Profile{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ── Back Link ───────────────────────────────────────────── -->
+    <div>
+        <a href="/students-page" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
+            ← Back to Students
+        </a>
+    </div>
+
+    <!-- ── Student Profile Header ──────────────────────────────── -->
+    <div class="bg-white border border-zinc-200 rounded-lg p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <!-- Initials Avatar -->
+                <div class="w-12 h-12 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center font-mono font-bold text-base text-zinc-700 flex-shrink-0">
+                    {{ student.username[:2]|upper }}
+                </div>
+
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-lg font-bold text-zinc-900">{{ student.username }}</h1>
+                        {% if student.cf_handle %}
+                            <a href="https://codeforces.com/profile/{{ student.cf_handle }}" target="_blank"
+                               class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 transition-colors">
+                                CF: {{ student.cf_handle }} ↗
+                            </a>
+                        {% endif %}
+                        {% if student.vjudge_handle %}
+                            <span class="px-2 py-0.5 rounded text-xs font-mono text-zinc-600 bg-zinc-50 border border-zinc-200">
+                                VJ: {{ student.vjudge_handle }}
+                            </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center gap-3 mt-1 text-xs text-zinc-500 flex-wrap">
+                        <span>{{ student.email }}</span>
+                        <span>•</span>
+                        <span class="font-mono">Joined {{ student.created_at.strftime('%b %d, %Y') if student.created_at else '—' }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Header Action -->
+            <div>
+                <button type="button" 
+                        onclick="Kotchy.openModal('assign-modal')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                    + Assign Task
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Assigned Tasks Section ──────────────────────────────── -->
+    <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+        <!-- Section Bar & Filter Tabs -->
+        <div class="px-4 py-3 border-b border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+                <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Assigned Tasks</h2>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
+                <button type="button" 
+                        data-filter="all"
+                        onclick="Kotchy.filterItems('all', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-900 text-white transition-colors">
+                    All ({{ sorted_tasks|length }})
+                </button>
+                <button type="button" 
+                        data-filter="in_progress"
+                        onclick="Kotchy.filterItems('in_progress', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                    In Progress ({{ in_progress_count }})
+                </button>
+                <button type="button" 
+                        data-filter="completed"
+                        onclick="Kotchy.filterItems('completed', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                    Completed ({{ completed_count }})
+                </button>
+            </div>
+        </div>
+
+        <!-- Sorted Task List (Pending / In Progress FIRST, Completed LAST) -->
+        <div class="divide-y divide-zinc-200">
+            {% for item in sorted_tasks %}
+                {% set a = item.assignment %}
+                {% set t = item.task %}
+                <div class="task-row p-4 hover:bg-zinc-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                     data-status-category="{{ 'completed' if a.status in ['completed', 'late'] else 'in_progress' }}">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="text-xs font-mono uppercase px-1.5 py-0.5 rounded border 
+                                {% if t.task_type == 'CF_SHEET' %}bg-zinc-100 text-zinc-700 border-zinc-300
+                                {% else %}bg-zinc-100 text-zinc-700 border-zinc-300{% endif %}">
+                                {{ t.task_type }}
+                            </span>
+                            <a href="/tasks-page/{{ t.id }}" class="text-sm font-semibold text-zinc-900 hover:underline">
+                                {{ t.title }}
+                            </a>
+                        </div>
+
+                        <!-- Deadline & Solved Status -->
+                        <div class="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 flex-wrap">
+                            <!-- Deadline Status -->
+                            <span class="font-mono {% if item.is_overdue %}text-rose-700 font-medium{% endif %}">
+                                Deadline: {{ a.deadline.strftime('%Y-%m-%d %H:%M') if a.deadline else '2030-01-01' }}
+                                {% if item.is_overdue %}(Overdue){% endif %}
+                            </span>
+                            <span>•</span>
+                            <!-- Solved Ratio -->
+                            <span id="assignment-solved-{{ a.id }}" class="font-mono font-medium text-zinc-700">
+                                {{ item.solved_count }}/{{ item.required_count }} Solved
+                            </span>
+                            {% if item.last_checked %}
+                                <span>•</span>
+                                <span class="text-zinc-400 font-mono text-[11px]">Checked: {{ item.last_checked }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Right Status Pill & Check Action -->
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span id="assignment-badge-{{ a.id }}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium border
+                            {% if a.status == 'completed' %}text-emerald-700 bg-emerald-50 border-emerald-200
+                            {% elif a.status == 'late' %}text-amber-700 bg-amber-50 border-amber-200
+                            {% elif a.status == 'in_progress' %}text-zinc-700 bg-zinc-100 border-zinc-200
+                            {% else %}text-zinc-500 bg-zinc-50 border-zinc-200{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full 
+                                {% if a.status == 'completed' %}bg-emerald-500
+                                {% elif a.status == 'late' %}bg-amber-500
+                                {% elif a.status == 'in_progress' %}bg-zinc-400
+                                {% else %}bg-zinc-300{% endif %}"></span>
+                            {{ 'Solved' if a.status == 'completed' else 'Late' if a.status == 'late' else 'In Progress' if a.status == 'in_progress' else 'Pending' }}
+                        </span>
+
+                        <button type="button" 
+                                data-check-id="{{ a.id }}"
+                                onclick="Kotchy.Assignment.checkAssignment({{ a.id }}, this)"
+                                class="px-2.5 py-1 text-xs font-medium rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 transition-colors">
+                            Run Check
+                        </button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="py-8 text-center text-zinc-400 text-xs">
+                    No tasks assigned to this student yet.
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Assign Task Modal for this Student ───────────────────── -->
+<div id="assign-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 max-w-md w-full rounded-lg p-5 shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+            <h3 class="text-sm font-bold text-zinc-900">Assign Task to {{ student.username }}</h3>
+            <button type="button" onclick="Kotchy.closeModal('assign-modal')" class="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+        </div>
+
+        <form onsubmit="handleAssignSingle(event)" class="mt-4 space-y-3">
+            <input type="hidden" name="student_id" value="{{ student.id }}">
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Select Task *</label>
+                <select name="task_id" required class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    <option value="" disabled selected>Select a task...</option>
+                    {% for t in all_tasks %}
+                        <option value="{{ t.id }}">{{ t.title }} [{{ t.task_type }}]</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Start Date</label>
+                    <input type="datetime-local" name="start_date"
+                           class="w-full px-2 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Deadline</label>
+                    <input type="datetime-local" name="deadline"
+                           class="w-full px-2 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                </div>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-zinc-100">
+                <button type="button" onclick="Kotchy.closeModal('assign-modal')"
+                        class="px-3 py-1.5 rounded border border-zinc-300 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-3 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800">
+                    Assign Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function handleAssignSingle(event) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+
+        const payload = {
+            student_id: parseInt(form.student_id.value),
+            task_id: parseInt(form.task_id.value),
+            start_date: form.start_date.value ? new Date(form.start_date.value).toISOString() : null,
+            deadline: form.deadline.value ? new Date(form.deadline.value).toISOString() : null,
+        };
+
+        try {
+            const res = await fetch('/assignments/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error('Failed to assign task.');
+            Kotchy.showToast('Task assigned successfully.');
+            Kotchy.closeModal('assign-modal');
+            setTimeout(() => window.location.reload(), 400);
+        } catch (e) {
+            Kotchy.showToast(e.message, 'error');
+        } finally {
+            btn.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

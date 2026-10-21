@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}{{ task.title }} • Task Details{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ── Back Link ───────────────────────────────────────────── -->
+    <div>
+        <a href="/tasks-page" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
+            ← Back to Tasks Archive
+        </a>
+    </div>
+
+    <!-- ── Two-Column Layout (Sidebar 30% | Main Area 70%) ──────── -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- ── Sidebar (Student Assignment & Status) (col-span-4 = ~33%) ── -->
+        <aside class="lg:col-span-4 space-y-5">
+            <!-- 1. Assign Task Box -->
+            <div class="bg-white border border-zinc-200 rounded-lg p-4">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-900 mb-1">Assign to Students</h3>
+                <p class="text-[11px] text-zinc-500 mb-3">Select checkboxes or enter comma-separated handles</p>
+
+                <form onsubmit="Kotchy.Assignment.submitBatchAssign(event, {{ task.id }})" class="space-y-3">
+                    <!-- Comma-separated usernames input -->
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-700 mb-1">Usernames / Handles</label>
+                        <input type="text" name="usernames_input" placeholder="ahmed, omar, karim..."
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                    </div>
+
+                    <!-- Checkboxes with "Select All" Toggle -->
+                    <div>
+                        <div class="flex items-center justify-between text-[11px] font-medium text-zinc-700 mb-1">
+                            <span>Or Select Cohort Members:</span>
+                            <label class="cursor-pointer text-zinc-500 hover:text-zinc-900 flex items-center gap-1">
+                                <input type="checkbox" onchange="Kotchy.Assignment.toggleSelectAllStudents(this)" class="rounded border-zinc-300 text-zinc-900 focus:ring-0">
+                                <span>Select All</span>
+                            </label>
+                        </div>
+                        <div class="max-h-36 overflow-y-auto border border-zinc-200 rounded p-2 bg-zinc-50/60 divide-y divide-zinc-100 text-xs">
+                            {% for s in all_students %}
+                                <label class="flex items-center justify-between py-1 px-1 cursor-pointer hover:bg-zinc-100/60 rounded">
+                                    <span class="font-mono text-zinc-800">{{ s.username }} {% if s.cf_handle %}<span class="text-zinc-400">({{ s.cf_handle }})</span>{% endif %}</span>
+                                    <input type="checkbox" value="{{ s.id }}" class="student-assign-checkbox rounded border-zinc-300 text-zinc-900 focus:ring-0"
+                                           {% if s.id in already_assigned_student_ids %}disabled title="Already assigned"{% endif %}>
+                                </label>
+                            {% else %}
+                                <span class="text-zinc-400 italic text-[11px]">No students available</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                            <label class="block font-medium text-zinc-600 mb-1">Start Date</label>
+                            <input type="datetime-local" name="start_date"
+                                   class="w-full px-2 py-1 rounded border border-zinc-300 text-[11px] font-mono focus:outline-none focus:border-zinc-900">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-zinc-600 mb-1">Deadline</label>
+                            <input type="datetime-local" name="deadline"
+                                   class="w-full px-2 py-1 rounded border border-zinc-300 text-[11px] font-mono focus:outline-none focus:border-zinc-900">
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                            class="w-full mt-2 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-colors">
+                        Assign Selected
+                    </button>
+                </form>
+            </div>
+
+            <!-- 2. Assigned Students List (In Progress & Completed) -->
+            <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                <div class="px-4 py-2.5 border-b border-zinc-200 bg-zinc-50/60 flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-zinc-700">Enrolled Students</span>
+                    <span class="text-xs font-mono text-zinc-500">{{ assigned_students|length }} total</span>
+                </div>
+
+                <!-- Upper Sub-Section: IN PROGRESS -->
+                <div class="p-3 border-b border-zinc-200">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                            <span>In Progress / Pending ({{ in_progress_assignments|length }})</span>
+                        </span>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        {% for item in in_progress_assignments %}
+                            {% set a = item.assignment %}
+                            {% set s = item.student %}
+                            <div class="p-2 rounded border border-zinc-200 bg-white hover:bg-zinc-50 flex items-center justify-between gap-2 text-xs">
+                                <div class="min-w-0">
+                                    <a href="/students-page/{{ s.id }}" class="font-semibold text-zinc-900 hover:underline block truncate">
+                                        {{ s.username }}
+                                    </a>
+                                    <span id="assignment-solved-{{ a.id }}" class="font-mono text-[11px] text-zinc-500">
+                                        {{ item.solved_count }}/{{ item.required_count }} Solved
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <button type="button" 
+                                            data-check-id="{{ a.id }}"
+                                            onclick="Kotchy.Assignment.checkAssignment({{ a.id }}, this)"
+                                            class="px-2 py-0.5 text-[11px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-100 transition-colors">
+                                        Check
+                                    </button>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="text-[11px] text-zinc-400 italic py-1">No students in progress.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Lower Sub-Section: COMPLETED -->
+                <div class="p-3 bg-zinc-50/40">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span>Completed ({{ completed_assignments|length }})</span>
+                        </span>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        {% for item in completed_assignments %}
+                            {% set a = item.assignment %}
+                            {% set s = item.student %}
+                            <div class="p-2 rounded border border-zinc-200 bg-white text-zinc-500 flex items-center justify-between gap-2 text-xs">
+                                <div class="min-w-0">
+                                    <a href="/students-page/{{ s.id }}" class="font-medium text-zinc-800 hover:underline block truncate">
+                                        {{ s.username }}
+                                    </a>
+                                    <span class="font-mono text-[11px] text-emerald-700">
+                                        {{ item.solved_count }}/{{ item.required_count }} Solved
+                                    </span>
+                                </div>
+                                <span class="text-emerald-700 text-xs font-mono font-medium">✓ Done</span>
+                            </div>
+                        {% else %}
+                            <p class="text-[11px] text-zinc-400 italic py-1">No completed submissions yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- ── Main Area (Task Details & Problem List) (col-span-8 = ~67%) ── -->
+        <main class="lg:col-span-8 space-y-6">
+
+            <!-- Task Header Card -->
+            <div class="bg-white border border-zinc-200 rounded-lg p-5">
+                <div class="flex items-start justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-mono uppercase px-1.5 py-0.5 rounded border bg-zinc-100 text-zinc-700 border-zinc-300 font-medium">
+                                {{ task.task_type }}
+                            </span>
+                            <span class="text-xs text-zinc-400 font-mono">ID: #{{ task.id }}</span>
+                        </div>
+                        <h1 class="text-xl font-bold text-zinc-900 mt-2">{{ task.title }}</h1>
+                        {% if task.description %}
+                            <p class="text-xs text-zinc-600 mt-1 leading-relaxed">{{ task.description }}</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" 
+                                onclick="Kotchy.Task.delete({{ task.id }}, '{{ task.title }}')"
+                                class="px-2.5 py-1 text-xs font-medium rounded text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Content based on Type -->
+            {% if task.task_type == 'CF_SHEET' %}
+                <!-- CF_SHEET: Problem List Table with Cohort Solve Rates -->
+                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Curated Problem Set</h2>
+                            <p class="text-[11px] text-zinc-400">Passing requirement: minimum <strong class="font-mono text-zinc-700">{{ min_solved_required }}</strong> problem(s)</p>
+                        </div>
+                        <span class="font-mono text-xs text-zinc-500">{{ sheet_problems|length }} Problems</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
+                                    <th class="py-2.5 px-4 font-mono w-24">Problem</th>
+                                    <th class="py-2.5 px-4">Direct Link</th>
+                                    <th class="py-2.5 px-4 font-mono">Cohort Solve Rate</th>
+                                    <th class="py-2.5 px-4">Progress Bar</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
+                                {% for p in sheet_problems %}
+                                    <tr class="hover:bg-zinc-50/60 transition-colors">
+                                        <td class="py-2.5 px-4 font-mono font-bold text-zinc-900">
+                                            {{ p.code }}
+                                        </td>
+                                        <td class="py-2.5 px-4">
+                                            <a href="{{ p.link }}" target="_blank" 
+                                               class="text-zinc-600 hover:text-zinc-900 underline decoration-zinc-300 font-mono text-[11px] inline-flex items-center gap-1">
+                                                <span>Codeforces Problem</span>
+                                                <span>↗</span>
+                                            </a>
+                                        </td>
+                                        <td class="py-2.5 px-4 font-mono">
+                                            <span class="font-semibold text-zinc-900">{{ p.solved_count }}</span> / {{ p.total_assigned }} Solved
+                                        </td>
+                                        <td class="py-2.5 px-4 min-w-[120px]">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-24 bg-zinc-100 rounded-full h-1.5 overflow-hidden">
+                                                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ p.solve_pct }}%"></div>
+                                                </div>
+                                                <span class="font-mono text-[10px] text-zinc-400">{{ p.solve_pct }}%</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="py-6 text-center text-zinc-400 italic">No problems configured for this sheet.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            {% elif task.task_type == 'CF_CONTEST' %}
+                <!-- CF_CONTEST: Contest Details & Standings -->
+                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Codeforces Contest Standings</h2>
+                            <p class="text-[11px] text-zinc-400">Contest #{{ task.config.get('contest_id') }} • Access: {{ task.config.get('access_type', 'public') }}</p>
+                        </div>
+                        <a href="https://codeforces.com/contest/{{ task.config.get('contest_id') }}" target="_blank"
+                           class="text-xs font-mono text-zinc-600 hover:text-zinc-900 underline">
+                            View Official Standings ↗
+                        </a>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
+                                    <th class="py-2.5 px-4">Student</th>
+                                    <th class="py-2.5 px-4 font-mono">CF Handle</th>
+                                    <th class="py-2.5 px-4 font-mono">Solved</th>
+                                    <th class="py-2.5 px-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
+                                {% for item in contest_participants %}
+                                    {% set s = item.student %}
+                                    {% set a = item.assignment %}
+                                    <tr class="hover:bg-zinc-50/60 transition-colors">
+                                        <td class="py-2.5 px-4 font-semibold text-zinc-900">
+                                            <a href="/students-page/{{ s.id }}" class="hover:underline">{{ s.username }}</a>
+                                        </td>
+                                        <td class="py-2.5 px-4 font-mono text-zinc-600">
+                                            {{ s.cf_handle or '—' }}
+                                        </td>
+                                        <td class="py-2.5 px-4 font-mono font-medium text-zinc-900">
+                                            {{ item.solved_count }} solved
+                                        </td>
+                                        <td class="py-2.5 px-4 font-mono">
+                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]
+                                                {% if a.status == 'completed' %}text-emerald-700 bg-emerald-50 border border-emerald-200
+                                                {% else %}text-zinc-600 bg-zinc-100 border border-zinc-200{% endif %}">
+                                                <span class="w-1.5 h-1.5 rounded-full {% if a.status == 'completed' %}bg-emerald-500{% else %}bg-zinc-400{% endif %}"></span>
+                                                {{ 'Qualified' if a.status == 'completed' else 'In Progress' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr>
+                                        <td colspan="4" class="py-6 text-center text-zinc-400 italic">No students assigned to this contest yet.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+
+        </main>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script id="all-students-json" type="application/json">{{ all_students_json | tojson }}</script>
+<script>
+    try {
+        window.ALL_STUDENTS = JSON.parse(document.getElementById('all-students-json').textContent || '[]');
+    } catch (e) {
+        window.ALL_STUDENTS = [];
+    }
+</script>
+{% endblock %}

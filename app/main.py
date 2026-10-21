@@ -1,64 +1,69 @@
+"""
+app/main.py
+───────────
+FastAPI application entry point for the Kotchy ICPC Student Tracking System.
+"""
+
 from __future__ import annotations
 
-import json
-import logging
 import sys
-from datetime import datetime, timedelta, timezone
-
-import os
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncGenerator
 
-# Add project root to sys.path so direct invocation (python3 app/main.py) works
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
-from app.core.database import get_session, init_db
-from app.domain.codeforces.sheet import CodeforcesSheetTask
-from app.domain.factory import TaskFactory
-from app.models.student import Student
-from app.models.student_task import StudentTask
-from app.models.task import Task
+# Ensure project root is in sys.path for direct invocation
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_PROJECT_ROOT))
 
-# ── Logging ───────────────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s │ %(levelname)-8s │ %(name)s │ %(message)s",
-    datefmt="%H:%M:%S",
+from app.api import assignments, pages, students, tasks
+from app.core.database import init_db
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Ensure database tables are created at application startup."""
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="Kotchy ICPC Tracker API",
+    version="1.0.0",
+    lifespan=lifespan,
 )
-logger = logging.getLogger("kotchy")
 
-_SEPARATOR = "═" * 60
+# ── CORS Middleware ───────────────────────────────────────────
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ── Mount Static Files ────────────────────────────────────────
+_STATIC_DIR = _PROJECT_ROOT / "static"
+app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+# ── Register Frontend & API Routers ───────────────────────────
+app.include_router(pages.router)
+app.include_router(students.router)
+app.include_router(tasks.router)
+app.include_router(assignments.router)
 
 
-def _pretty_json(obj: dict) -> str:
-    return json.dumps(obj, indent=2, default=str)
+# ── Health Check ──────────────────────────────────────────────
+@app.get("/health", tags=["Health"])
+def health_check() -> dict:
+    """Service health probe."""
+    return {"status": "ok"}
 
 
-def main() -> None:
-    s1 = Student(
-        username="zyadhany",
-        email="[EMAIL_ADDRESS]",
-        password_hash="pbkdf2:sha256:placeholder",
-        cf_handle="zyadhany",
-        description="Test student seeded for local verification.",
-    )
-        
-    task1 = CodeforcesSheetTask(
-        problems=["158A", "71A", "590E"],
-        min_solved_count=2,
-    )
-
-    st = StudentTask(
-        student_id=1,
-        task_id=1,
-        start_date=datetime.now(timezone.utc) - timedelta(days=30),
-        deadline=datetime.now(timezone.utc) + timedelta(days=7),
-    )
-
-    ret = task1.check(s1, st)
-    print(_pretty_json(ret))
-    
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        sys.exit(130)
+    import uvicorn
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

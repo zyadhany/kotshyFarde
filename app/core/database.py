@@ -27,9 +27,12 @@ engine = create_engine(
 
 
 # ── Session helper ────────────────────────────────────────────
-@contextmanager
 def get_session() -> Generator[Session, None, None]:
-    """Provide a transactional database session (context manager)."""
+    """Provide a transactional database session for FastAPI dependencies.
+
+    Commits on successful completion, rolls back on unhandled exception,
+    and always closes the session.
+    """
     session = Session(engine)
     try:
         yield session
@@ -39,6 +42,9 @@ def get_session() -> Generator[Session, None, None]:
         raise
     finally:
         session.close()
+
+
+session_scope = contextmanager(get_session)
 
 
 # ── Table creation ────────────────────────────────────────────

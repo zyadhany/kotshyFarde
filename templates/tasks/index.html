@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Tasks • Kotchy ICPC Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ── Header & Filters ────────────────────────────────────── -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <h1 class="text-lg font-bold text-zinc-900 tracking-tight">Task Archive</h1>
+            <p class="text-xs text-zinc-500">Problem sheets, contest assignments, and passing criteria</p>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
+                <button type="button" 
+                        data-filter="all"
+                        onclick="Kotchy.filterItems('all', '.task-archive-row', 'data-type')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-900 text-white transition-colors">
+                    All ({{ tasks|length }})
+                </button>
+                <button type="button" 
+                        data-filter="CF_SHEET"
+                        onclick="Kotchy.filterItems('CF_SHEET', '.task-archive-row', 'data-type')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                    Sheets ({{ sheet_count }})
+                </button>
+                <button type="button" 
+                        data-filter="CF_CONTEST"
+                        onclick="Kotchy.filterItems('CF_CONTEST', '.task-archive-row', 'data-type')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                    Contests ({{ contest_count }})
+                </button>
+            </div>
+
+            <!-- Create Task Button -->
+            <button type="button" 
+                    onclick="Kotchy.openModal('create-task-modal')"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                + Create Task
+            </button>
+        </div>
+    </div>
+
+    <!-- ── Tasks Table ─────────────────────────────────────────── -->
+    <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
+                        <th class="py-2.5 px-4 font-mono w-16">ID</th>
+                        <th class="py-2.5 px-4">Title</th>
+                        <th class="py-2.5 px-4 font-mono">Task Type</th>
+                        <th class="py-2.5 px-4 font-mono">Problem Count</th>
+                        <th class="py-2.5 px-4 font-mono">Assigned Students</th>
+                        <th class="py-2.5 px-4 font-mono">Created At</th>
+                        <th class="py-2.5 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 text-zinc-700">
+                    {% for item in task_items %}
+                        {% set t = item.task %}
+                        <tr class="task-archive-row hover:bg-zinc-50/60 transition-colors" data-type="{{ t.task_type }}">
+                            <td class="py-2.5 px-4 font-mono text-zinc-400">#{{ t.id }}</td>
+                            <td class="py-2.5 px-4 font-semibold text-zinc-900">
+                                <a href="/tasks-page/{{ t.id }}" class="hover:underline">
+                                    {{ t.title }}
+                                </a>
+                                {% if t.description %}
+                                    <span class="block text-[11px] text-zinc-500 font-normal truncate max-w-sm">{{ t.description }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2.5 px-4 font-mono">
+                                <span class="px-1.5 py-0.5 rounded border text-[11px] font-medium
+                                    {% if t.task_type == 'CF_SHEET' %}bg-zinc-100 text-zinc-700 border-zinc-300
+                                    {% else %}bg-zinc-100 text-zinc-700 border-zinc-300{% endif %}">
+                                    {{ t.task_type }}
+                                </span>
+                            </td>
+                            <td class="py-2.5 px-4 font-mono text-zinc-600">
+                                {% if t.task_type == 'CF_SHEET' %}
+                                    {{ item.problem_count }} problems (min: {{ item.min_solved }})
+                                {% else %}
+                                    Contest #{{ t.config.get('contest_id', '—') }} (min: {{ item.min_solved }})
+                                {% endif %}
+                            </td>
+                            <td class="py-2.5 px-4 font-mono text-zinc-600">
+                                {{ item.assigned_count }} students
+                            </td>
+                            <td class="py-2.5 px-4 font-mono text-zinc-500">
+                                {{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}
+                            </td>
+                            <td class="py-2.5 px-4 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="/tasks-page/{{ t.id }}" 
+                                       class="px-2 py-1 text-[11px] font-medium rounded bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors">
+                                        Details
+                                    </a>
+                                    <button type="button" 
+                                            onclick="Kotchy.Task.delete({{ t.id }}, '{{ t.title }}')"
+                                            class="px-2 py-1 text-[11px] font-medium rounded text-rose-600 hover:bg-rose-50 transition-colors">
+                                        Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="py-8 text-center text-zinc-400 text-xs">
+                                No tasks found. Click "+ Create Task" to add problem sets.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Create Task Modal ────────────────────────────────────── -->
+<div id="create-task-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 max-w-lg w-full rounded-lg p-5 shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+            <h3 class="text-sm font-bold text-zinc-900">Create Task Set</h3>
+            <button type="button" onclick="Kotchy.closeModal('create-task-modal')" class="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+        </div>
+
+        <form onsubmit="Kotchy.Task.submitCreate(event)" class="mt-4 space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Title *</label>
+                <input type="text" name="title" required placeholder="e.g. Dynamic Programming 1"
+                       class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Description</label>
+                <input type="text" name="description" placeholder="Optional notes or instructions"
+                       class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Task Type</label>
+                <select name="task_type" onchange="Kotchy.Task.toggleTypeFields(this.value)"
+                        class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    <option value="CF_SHEET" selected>CF_SHEET (Problem List)</option>
+                    <option value="CF_CONTEST">CF_CONTEST (Contest)</option>
+                </select>
+            </div>
+
+            <!-- Sheet Fields -->
+            <div id="sheet-fields" class="space-y-3 pt-1">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Problem Codes (comma/space separated) *</label>
+                    <textarea name="problems" rows="2" placeholder="4A, 71A, 158A, 118D"
+                              class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Min Solved Required</label>
+                    <input type="number" name="min_solved_count" min="1" placeholder="Defaults to all problems"
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                </div>
+            </div>
+
+            <!-- Contest Fields -->
+            <div id="contest-fields" class="hidden space-y-3 pt-1">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">Contest ID *</label>
+                        <input type="number" name="contest_id" placeholder="1985"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">Min Solved</label>
+                        <input type="number" name="contest_min_solved" min="1" value="2"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 font-mono focus:outline-none focus:border-zinc-900">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Access Type</label>
+                    <select name="access_type" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900">
+                        <option value="public" selected>Public</option>
+                        <option value="private_managed">Private Managed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-zinc-100">
+                <button type="button" onclick="Kotchy.closeModal('create-task-modal')"
+                        class="px-3 py-1.5 rounded border border-zinc-300 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-3 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800">
+                    Create Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

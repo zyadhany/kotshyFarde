@@ -1,0 +1,77 @@
+/*
+static/css/style.css
+────────────────────
+Clean, high-density, minimalist styling overrides.
+Inspired by Linear, GitHub, and Codeforces.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #fafafa; /* zinc-50 */
+  color: #18181b; /* zinc-900 */
+  -webkit-font-smoothing: antialiased;
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ── Minimal Scrollbar ────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8; /* zinc-300 */
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa; /* zinc-400 */
+}
+
+/* ── Spinner for Async Buttons ────────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinner {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ── Toast animation ──────────────────────────────────────────── */
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.toast-enter {
+  animation: toastIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ── Modal overlay ────────────────────────────────────────────── */
+.modal-overlay {
+  background-color: rgba(24, 24, 27, 0.4);
+}
