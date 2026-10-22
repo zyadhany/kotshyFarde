@@ -1,0 +1,54 @@
+<!-- CF_SHEET: Problem List Table with Cohort Solve Rates -->
+<div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
+        <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Curated Problem Set</h2>
+            <p class="text-[11px] text-zinc-400">Passing requirement: minimum <strong class="font-mono text-zinc-700">{{ min_solved_required }}</strong> problem(s)</p>
+        </div>
+        <span class="font-mono text-xs text-zinc-500">{{ sheet_problems|length }} Problems</span>
+    </div>
+
+    <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+            <thead>
+                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
+                    <th class="py-2.5 px-4 font-mono w-24">Problem</th>
+                    <th class="py-2.5 px-4">Direct Link</th>
+                    <th class="py-2.5 px-4 font-mono">Cohort Solve Rate</th>
+                    <th class="py-2.5 px-4">Progress Bar</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-zinc-200 text-zinc-700">
+                {% for p in sheet_problems %}
+                    <tr class="hover:bg-zinc-50/60 transition-colors">
+                        <td class="py-2.5 px-4 font-mono font-bold text-zinc-900">
+                            {{ p.code }}
+                        </td>
+                        <td class="py-2.5 px-4">
+                            <a href="{{ p.link }}" target="_blank" 
+                               class="text-zinc-600 hover:text-zinc-900 underline decoration-zinc-300 font-mono text-[11px] inline-flex items-center gap-1">
+                                <span>Codeforces Problem</span>
+                                <span>↗</span>
+                            </a>
+                        </td>
+                        <td class="py-2.5 px-4 font-mono">
+                            <span class="font-semibold text-zinc-900">{{ p.solved_count }}</span> / {{ p.total_assigned }} Solved
+                        </td>
+                        <td class="py-2.5 px-4 min-w-[120px]">
+                            <div class="flex items-center gap-2">
+                                <div class="w-24 bg-zinc-100 rounded-full h-1.5 overflow-hidden">
+                                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ p.solve_pct }}%"></div>
+                                </div>
+                                <span class="font-mono text-[10px] text-zinc-400">{{ p.solve_pct }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="py-6 text-center text-zinc-400 italic">No problems configured for this sheet.</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

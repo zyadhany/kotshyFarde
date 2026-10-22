@@ -1,7 +1,16 @@
-for codeforces contest task
--   list that contain index and name of all the problems
-    -   make function that gnerate that last using function from codeforces_api
-    -   make geter for it
-        - if it's null will gnerate it
-        - else will return it directly
 
+
+
+For futer never look at now at all
+
+- rating view for user
+
+Login page
+-   auntactors
+-   Hash password
+
+- cses problems task
+- vjudge sheet task
+- Codeforces Privte contest check
+- manual todo task (topics, videos, descreption) (just like todo list ill task and for them to pass just check box)
+    - can improve it by check box for every complated link

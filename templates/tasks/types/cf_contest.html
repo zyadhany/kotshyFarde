@@ -1,0 +1,214 @@
+<!-- CF_CONTEST: Contest View with Problems & Standings Tabs -->
+<div class="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs">
+    <!-- ── Contest Header Bar ──────────────────────────────────── -->
+    <div class="px-5 py-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+        <div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-sky-100 text-sky-800 border border-sky-200 uppercase tracking-wide">
+                    Contest #{{ task.config.get('contest_id') }}
+                </span>
+                <span class="text-xs text-slate-500 font-mono">
+                    Access: <span class="text-slate-700 font-medium">{{ task.config.get('access_type', 'public') }}</span>
+                </span>
+                <span class="text-xs text-slate-300">•</span>
+                <span class="text-xs text-slate-500 font-mono">
+                    Min Solved: <span class="text-slate-700 font-bold">{{ task.config.get('min_solved', 1) }}</span>
+                </span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">
+                Real-time Contest Problems tracking and Codeforces Contest Standings for this cohort.
+            </p>
+        </div>
+
+        <a href="https://codeforces.com/contest/{{ task.config.get('contest_id') }}" target="_blank"
+           class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-slate-200 text-slate-700 hover:text-sky-700 hover:border-sky-300 hover:bg-sky-50/50 shadow-xs transition-all">
+            <span>View on Codeforces</span>
+            <span class="text-sky-600 font-bold">↗</span>
+        </a>
+    </div>
+
+    <!-- ── 2 Tabs Navigation: Problems | Standings ─────────────── -->
+    <div class="border-b border-slate-200 bg-slate-50/80 px-4 pt-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <!-- Problems Tab Button -->
+            <button type="button" 
+                    id="tab-btn-problems"
+                    onclick="Kotchy.switchContestTab('problems')"
+                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5">
+                <span>Problems</span>
+                <span class="px-1.5 py-0.2 rounded-full bg-sky-100 text-sky-700 font-mono text-[10px]">{{ contest_problems|length }}</span>
+            </button>
+
+            <!-- Standings Tab Button -->
+            <button type="button" 
+                    id="tab-btn-standings"
+                    onclick="Kotchy.switchContestTab('standings')"
+                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5">
+                <span>Standings</span>
+                <span class="px-1.5 py-0.2 rounded-full bg-slate-200/70 text-slate-700 font-mono text-[10px]">{{ contest_standings|length }}</span>
+            </button>
+        </div>
+
+        <span class="text-[11px] font-mono text-slate-400 hidden sm:inline-block">
+            Codeforces Contest View
+        </span>
+    </div>
+
+    <!-- ── TAB 1: PROBLEMS ──────────────────────────────────────── -->
+    <div id="contest-tab-problems" class="contest-tab-pane">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-500 font-medium">
+                        <th class="py-2.5 px-4 font-mono w-16">Index</th>
+                        <th class="py-2.5 px-4">Problem Name</th>
+                        <th class="py-2.5 px-4 font-mono w-44">Number of Solved</th>
+                        <th class="py-2.5 px-4 text-right w-28">Direct Link</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for p in contest_problems %}
+                        <tr class="hover:bg-sky-50/30 transition-colors">
+                            <td class="py-3 px-4 font-mono font-bold text-slate-900 text-sm">
+                                <span class="w-7 h-7 rounded bg-slate-100 border border-slate-200 text-slate-800 inline-flex items-center justify-center font-mono font-bold">
+                                    {{ p.index }}
+                                </span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <a href="{{ p.link }}" target="_blank"
+                                   class="font-medium text-slate-900 hover:text-sky-600 hover:underline inline-flex items-center gap-1.5">
+                                    <span>{{ p.name }}</span>
+                                    <span class="text-slate-400 text-[11px]">↗</span>
+                                </a>
+                            </td>
+                            <td class="py-3 px-4 font-mono">
+                                <div class="flex items-center gap-2">
+                                    <span class="font-bold text-xs {% if p.solved_count > 0 %}text-emerald-700{% else %}text-slate-400{% endif %}">
+                                        {{ p.solved_count }}
+                                    </span>
+                                    <span class="text-slate-400 text-[11px]">/ {{ p.total_assigned }} solved</span>
+                                    {% if p.total_assigned > 0 %}
+                                        <div class="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden hidden sm:block">
+                                            <div class="h-full bg-emerald-500 rounded-full" style="width: {{ p.solve_pct }}%"></div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="py-3 px-4 text-right">
+                                <a href="{{ p.link }}" target="_blank"
+                                   class="px-2.5 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-colors inline-flex items-center gap-1 font-mono">
+                                    <span>CF {{ p.index }}</span>
+                                    <span>↗</span>
+                                </a>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="py-8 text-center text-slate-400 italic">
+                                No problems found for contest #{{ task.config.get('contest_id') }}.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── TAB 2: STANDINGS ─────────────────────────────────────── -->
+    <div id="contest-tab-standings" class="contest-tab-pane hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-center text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-600 font-medium">
+                        <th class="py-2.5 px-3 text-left w-12 font-mono">#</th>
+                        <th class="py-2.5 px-4 text-left">Who</th>
+                        <th class="py-2.5 px-3 font-mono font-bold text-slate-900 w-16" title="Total Solved">=</th >
+                        {% for p in contest_problems %}
+                            <th class="py-2.5 px-3 font-mono font-bold text-slate-800 min-w-[50px]">
+                                <a href="{{ p.link }}" target="_blank" class="hover:text-sky-600 hover:underline" title="{{ p.name }}">
+                                    {{ p.index }}
+                                </a>
+                            </th>
+                        {% endfor %}
+                        <th class="py-2.5 px-4 text-right">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-700">
+                    {% for row in contest_standings %}
+                        {% set s = row.student %}
+                        {% set a = row.assignment %}
+                        <tr class="hover:bg-sky-50/30 transition-colors">
+                            <td class="py-3 px-3 text-left font-mono text-slate-400 font-semibold">
+                                {{ row.rank }}
+                            </td>
+                            <td class="py-3 px-4 text-left">
+                                <a href="/students-page/{{ s.id }}" class="font-semibold text-slate-900 hover:text-sky-600 hover:underline block truncate max-w-[160px]">
+                                    {{ s.username }}
+                                </a>
+                                {% if s.cf_handle %}
+                                    <span class="text-[11px] font-mono text-slate-400 block truncate max-w-[160px]">
+                                        {{ s.cf_handle }}
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="py-3 px-3 font-mono font-bold text-sm text-slate-900">
+                                {{ row.solved_count }}
+                            </td>
+                            {% for cell in row.problem_cells %}
+                                <td class="py-3 px-3 font-mono text-center">
+                                    {% if cell.solved %}
+                                        <div class="inline-flex flex-col items-center justify-center">
+                                            <span class="font-bold text-emerald-600 text-sm leading-none">
+                                                {% if cell.attempts > 1 %}+{{ cell.attempts - 1 }}{% else %}+{% endif %}
+                                            </span>
+                                            {% if cell.after_deadline %}
+                                                <span class="text-[9px] text-amber-600 font-sans font-medium">Late</span>
+                                            {% endif %}
+                                        </div>
+                                    {% elif cell.attempts > 0 %}
+                                        <span class="font-semibold text-rose-500 text-xs">-{{ cell.attempts }}</span>
+                                    {% else %}
+                                        <span class="text-slate-300">·</span>
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                            <td class="py-3 px-4 text-right">
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono
+                                    {% if a.status in ('completed', 'late') %}text-emerald-700 bg-emerald-50 border border-emerald-200
+                                    {% else %}text-slate-600 bg-slate-100 border border-slate-200{% endif %}">
+                                    <span class="w-1.5 h-1.5 rounded-full {% if a.status in ('completed', 'late') %}bg-emerald-500{% else %}bg-slate-400{% endif %}"></span>
+                                    {{ 'Passed' if a.status in ('completed', 'late') else 'In Progress' }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="{{ 4 + contest_problems|length }}" class="py-8 text-center text-slate-400 italic">
+                                No students assigned to this contest yet.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                {% if contest_standings %}
+                    <tfoot>
+                        <!-- Codeforces-style Solved Summary Footer Row -->
+                        <tr class="bg-slate-50/80 border-t border-slate-200 text-slate-600 font-medium text-xs">
+                            <td colspan="2" class="py-2.5 px-4 text-left font-semibold uppercase tracking-wider text-[11px] text-slate-500">
+                                Cohort Solves
+                            </td>
+                            <td class="py-2.5 px-3 font-mono font-bold text-slate-900">
+                                {{ total_cohort_solves }}
+                            </td>
+                            {% for p in contest_problems %}
+                                <td class="py-2.5 px-3 font-mono font-bold {% if p.solved_count > 0 %}text-emerald-700{% else %}text-slate-400{% endif %}">
+                                    {{ p.solved_count }}
+                                </td>
+                            {% endfor %}
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>

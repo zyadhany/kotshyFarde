@@ -16,12 +16,12 @@
         <div class="flex items-center gap-2">
             <button type="button" 
                     onclick="Kotchy.openModal('add-student-modal')"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-zinc-300 text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 shadow-xs transition-colors">
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-white border border-slate-200 text-slate-700 hover:bg-sky-50/60 hover:text-sky-700 hover:border-sky-300 shadow-xs transition-colors">
                 + New Student
             </button>
             <button type="button" 
                     onclick="Kotchy.openModal('create-task-modal')"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 shadow-xs transition-colors">
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors">
                 + New Task
             </button>
         </div>
@@ -30,32 +30,32 @@
     <!-- ── 3 Student-Focused Metric Cards ──────────────────────── -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <!-- 1. Total Students -->
-        <div class="bg-white border border-zinc-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-zinc-500">Total Students</div>
+        <div class="bg-white border border-slate-200 border-t-2 border-t-sky-500 rounded-lg p-4 shadow-xs">
+            <div class="text-xs font-medium text-slate-500">Total Students</div>
             <div class="mt-2 flex items-baseline gap-2">
-                <span class="text-2xl font-bold font-mono text-zinc-900">{{ metrics.total_students }}</span>
-                <span class="text-xs text-zinc-500">active in cohort</span>
+                <span class="text-2xl font-bold font-mono text-slate-900">{{ metrics.total_students }}</span>
+                <span class="text-xs text-slate-500">active in cohort</span>
             </div>
         </div>
 
         <!-- 2. On Track -->
-        <div class="bg-white border border-zinc-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-zinc-500">On Track</div>
+        <div class="bg-white border border-slate-200 border-t-2 border-t-emerald-500 rounded-lg p-4 shadow-xs">
+            <div class="text-xs font-medium text-slate-500">On Track</div>
             <div class="mt-2 flex items-baseline gap-2">
                 <span class="text-2xl font-bold font-mono text-emerald-700">{{ metrics.on_track_students }}</span>
                 <span class="text-xs text-emerald-700/80 font-mono">({{ metrics.on_track_pct }}%)</span>
             </div>
-            <p class="text-[11px] text-zinc-400 mt-1">All assigned tasks completed</p>
+            <p class="text-[11px] text-slate-400 mt-1">All assigned tasks completed</p>
         </div>
 
         <!-- 3. Needs Attention -->
-        <div class="bg-white border border-zinc-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-zinc-500">Needs Attention</div>
+        <div class="bg-white border border-slate-200 border-t-2 border-t-rose-500 rounded-lg p-4 shadow-xs">
+            <div class="text-xs font-medium text-slate-500">Needs Attention</div>
             <div class="mt-2 flex items-baseline gap-2">
                 <span class="text-2xl font-bold font-mono text-rose-700">{{ metrics.needs_attention_students }}</span>
                 <span class="text-xs text-rose-700/80 font-mono">({{ metrics.needs_attention_pct }}%)</span>
             </div>
-            <p class="text-[11px] text-zinc-400 mt-1">Has pending or overdue tasks</p>
+            <p class="text-[11px] text-slate-400 mt-1">Has pending or overdue tasks</p>
         </div>
     </div>
 

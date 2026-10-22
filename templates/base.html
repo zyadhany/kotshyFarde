@@ -13,29 +13,32 @@
 
     {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-zinc-50 text-zinc-900 min-h-screen flex flex-col antialiased">
+<body class="bg-white text-slate-800 min-h-screen flex flex-col antialiased selection:bg-sky-200 selection:text-sky-900">
 
-    <!-- ── Compact Top Navigation Bar (h-14) ───────────────────── -->
-    <header class="h-14 bg-white border-b border-zinc-200 sticky top-0 z-30">
+    <!-- ── Compact Top Navigation Bar (h-14) with calm light blue header ─────── -->
+    <header class="h-14 bg-sky-100/85 border-b border-sky-200 sticky top-0 z-30 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
             <!-- Left: Brand & Navigation -->
             <div class="flex items-center gap-6">
-                <a href="/" class="flex items-center gap-2 group">
-                    <span class="font-bold text-base tracking-tight text-zinc-950">Kotchy</span>
-                    <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 text-zinc-600 border border-zinc-200 uppercase tracking-wide">Tracker</span>
+                <a href="/" class="flex items-center gap-2.5 group">
+                    <div class="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-sky-600/30 group-hover:bg-sky-500 transition-colors">
+                        K
+                    </div>
+                    <span class="font-bold text-base tracking-tight text-slate-900 group-hover:text-sky-700 transition-colors">Kotchy</span>
+                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white text-sky-700 border border-sky-200 uppercase tracking-wide font-medium shadow-xs">Tracker</span>
                 </a>
 
-                <nav class="flex items-center gap-1">
+                <nav class="flex items-center gap-1.5">
                     <a href="/" 
-                       class="px-2.5 py-1 text-xs font-medium rounded-md transition-colors {% if active_page == 'dashboard' %}bg-zinc-100 text-zinc-900 font-semibold{% else %}text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50{% endif %}">
+                       class="px-3 py-1.5 text-xs font-medium rounded-md transition-all {% if active_page == 'dashboard' %}bg-white text-sky-700 font-semibold shadow-xs border border-sky-200{% else %}text-slate-600 hover:text-slate-900 hover:bg-white/60{% endif %}">
                         Dashboard
                     </a>
                     <a href="/students-page" 
-                       class="px-2.5 py-1 text-xs font-medium rounded-md transition-colors {% if active_page == 'students' %}bg-zinc-100 text-zinc-900 font-semibold{% else %}text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50{% endif %}">
+                       class="px-3 py-1.5 text-xs font-medium rounded-md transition-all {% if active_page == 'students' %}bg-white text-sky-700 font-semibold shadow-xs border border-sky-200{% else %}text-slate-600 hover:text-slate-900 hover:bg-white/60{% endif %}">
                         Students
                     </a>
                     <a href="/tasks-page" 
-                       class="px-2.5 py-1 text-xs font-medium rounded-md transition-colors {% if active_page == 'tasks' %}bg-zinc-100 text-zinc-900 font-semibold{% else %}text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50{% endif %}">
+                       class="px-3 py-1.5 text-xs font-medium rounded-md transition-all {% if active_page == 'tasks' %}bg-white text-sky-700 font-semibold shadow-xs border border-sky-200{% else %}text-slate-600 hover:text-slate-900 hover:bg-white/60{% endif %}">
                         Tasks
                     </a>
                 </nav>
@@ -43,9 +46,9 @@
 
             <!-- Right: Cohort Context (No /docs link) -->
             <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1.5 text-xs font-mono text-zinc-500">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>ICPC Cohort 2026</span>
+                <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white border border-sky-200 text-xs font-mono text-slate-700 shadow-xs">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="font-medium text-slate-700">ICPC Cohort 2026</span>
                 </div>
             </div>
         </div>
@@ -56,12 +59,16 @@
         {% block content %}{% endblock %}
     </main>
 
-    <!-- ── Minimal Footer ──────────────────────────────────────── -->
-    <footer class="border-t border-zinc-200 bg-white py-4 text-xs text-zinc-500 mt-auto">
+    <!-- ── Clean Minimal White Footer ──────────────────────────── -->
+    <footer class="border-t border-slate-200 bg-white py-4 text-xs text-slate-500 mt-auto">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>Kotchy Tracker • Local-first ICPC Coaching</span>
-            <div class="flex items-center gap-2 font-mono text-[11px] text-zinc-400">
-                <span class="inline-block w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
+            <div class="flex items-center gap-2">
+                <span class="font-medium text-slate-700">Kotchy Tracker</span>
+                <span class="text-slate-300">•</span>
+                <span>Local-first ICPC Coaching</span>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+                <span class="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 <span>UTC Sync Active</span>
             </div>
         </div>

@@ -370,12 +370,49 @@ def test_frontend_pages(client):
     assert "Task Archive" in res_tasks.text
     assert "Intro DP" in res_tasks.text
 
-    # Task detail page (/tasks-page/{id})
+    # Task detail page for CF_SHEET (/tasks-page/{id})
     res_t_detail = client.get(f"/tasks-page/{t_id}")
     assert res_t_detail.status_code == 200
     assert "Intro DP" in res_t_detail.text
     assert "158A" in res_t_detail.text
+    assert "Curated Problem Set" in res_t_detail.text
     assert "Assign to Students" in res_t_detail.text
+
+    # Task detail page for CF_CONTEST
+    c_res = client.post(
+        "/tasks/",
+        json={
+            "title": "Codeforces Round 950",
+            "task_type": "CF_CONTEST",
+            "config": {
+                "contest_id": 1980,
+                "min_solved": 3,
+                "problems": [{"index": "A", "name": "Problem A"}, {"index": "B", "name": "Problem B"}],
+            },
+        },
+    )
+    c_id = c_res.json()["id"]
+    res_c_detail = client.get(f"/tasks-page/{c_id}")
+    assert res_c_detail.status_code == 200
+    assert "Codeforces Round 950" in res_c_detail.text
+    assert "Codeforces Contest Standings" in res_c_detail.text
+    assert "Contest Problems" in res_c_detail.text
+    assert "Problem A" in res_c_detail.text
+
+    # Task detail page for custom/fallback task type
+    custom_res = client.post(
+        "/tasks/",
+        json={
+            "title": "CSES Sheet",
+            "task_type": "CSES_SHEET",
+            "config": {"sheet_name": "Introductory Problems"},
+        },
+    )
+    custom_id = custom_res.json()["id"]
+    res_custom_detail = client.get(f"/tasks-page/{custom_id}")
+    assert res_custom_detail.status_code == 200
+    assert "CSES Sheet" in res_custom_detail.text
+    assert "Task Configuration" in res_custom_detail.text
 
     # Static CSS and JS assets
     res_css = client.get("/static/css/style.css")

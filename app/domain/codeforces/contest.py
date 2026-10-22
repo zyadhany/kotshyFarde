@@ -156,3 +156,120 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             "after_deadline": after_deadline,
             "details": status_info,
         }
+
+    # ── Page Rendering ────────────────────────────────────────
+
+    def get_render_data(
+        self,
+        task: Any,
+        assignments: List[StudentTask],
+        student_map: Dict[int, Student],
+        session: Any = None,
+    ) -> Dict[str, Any]:
+        """Generate problems list and standings matrix for CF_CONTEST."""
+        raw_problems = self.problems or []
+
+        # If problems list not in task config or instance, attempt to fetch using CF API
+        if not raw_problems and self.contest_id:
+            try:
+                raw_problems = self.generate_problems()
+                if raw_problems and task and hasattr(task, "config") and session:
+                    task.config = {**task.config, "problems": raw_problems}
+                    session.add(task)
+                    session.commit()
+                    session.refresh(task)
+            except Exception:
+                pass
+
+        # If still empty, check student checker results for problem keys
+        if not raw_problems:
+            discovered_indices = set()
+            for a in assignments:
+                res = a.checker_result or {}
+                for p_idx in res.get("per_problem", {}).keys():
+                    discovered_indices.add(p_idx)
+                for p_idx in res.get("solved_problems", []):
+                    discovered_indices.add(p_idx)
+            if discovered_indices:
+                raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in sorted(discovered_indices)]
+            else:
+                raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in ["A", "B", "C", "D", "E"]]
+
+        # Normalize problem objects
+        normalized_problems = []
+        for item in raw_problems:
+            if isinstance(item, dict):
+                idx = str(item.get("index", "")).upper()
+                name = item.get("name") or f"Problem {idx}"
+            else:
+                idx = str(item).upper()
+                name = f"Problem {idx}"
+            link = f"https://codeforces.com/contest/{self.contest_id}/problem/{idx}" if self.contest_id else "#"
+            normalized_problems.append({
+                "index": idx,
+                "name": name,
+                "link": link,
+            })
+
+        # Calculate solve counts for each problem across all assigned students
+        for p in normalized_problems:
+            p_idx = p["index"]
+            solved_students = 0
+            for a in assignments:
+                res = a.checker_result or {}
+                per_prob = res.get("per_problem", {})
+                solved_list = res.get("solved_problems", [])
+                if per_prob.get(p_idx, {}).get("solved") is True or p_idx in solved_list:
+                    solved_students += 1
+            p["solved_count"] = solved_students
+            p["total_assigned"] = len(assignments)
+            p["solve_pct"] = round((solved_students / len(assignments)) * 100) if assignments else 0
+
+        contest_problems = normalized_problems
+        total_cohort_solves = sum(p["solved_count"] for p in contest_problems)
+
+        # Build Standings rows (Student row with each problem column result)
+        contest_standings = []
+        for a in assignments:
+            student = student_map.get(a.student_id)
+            if not student:
+                continue
+            res = a.checker_result or {}
+            per_prob = res.get("per_problem", {})
+            solved_list = res.get("solved_problems", [])
+            solved_count = res.get("solved_count", len(solved_list) if solved_list else 0)
+
+            # Build cell status for each problem in contest_problems
+            problem_cells = []
+            for p in contest_problems:
+                p_idx = p["index"]
+                prob_info = per_prob.get(p_idx, {})
+                is_solved = prob_info.get("solved") is True or p_idx in solved_list
+                attempts = prob_info.get("attempts", 1 if is_solved else 0)
+                after_deadline = prob_info.get("after_deadline", False)
+
+                problem_cells.append({
+                    "index": p_idx,
+                    "solved": is_solved,
+                    "attempts": attempts,
+                    "after_deadline": after_deadline,
+                })
+
+            contest_standings.append({
+                "student": student,
+                "assignment": a,
+                "solved_count": solved_count,
+                "problem_cells": problem_cells,
+            })
+
+        # Sort standings: solved_count descending
+        contest_standings.sort(key=lambda r: r["solved_count"], reverse=True)
+        for rank, row in enumerate(contest_standings, start=1):
+            row["rank"] = rank
+
+        return {
+            "contest_problems": contest_problems,
+            "contest_standings": contest_standings,
+            "contest_participants": contest_standings,
+            "total_cohort_solves": total_cohort_solves,
+        }

@@ -382,6 +382,38 @@ const Kotchy = {
     });
   },
 
+  // ── Contest View Tabs (Problems vs Standings) ─────────────
+  switchContestTab(tabName) {
+    const problemsPane = document.getElementById('contest-tab-problems');
+    const standingsPane = document.getElementById('contest-tab-standings');
+    const problemsBtn = document.getElementById('tab-btn-problems');
+    const standingsBtn = document.getElementById('tab-btn-standings');
+
+    if (!problemsPane || !standingsPane) return;
+
+    if (tabName === 'problems') {
+      problemsPane.classList.remove('hidden');
+      standingsPane.classList.add('hidden');
+
+      if (problemsBtn) {
+        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5';
+      }
+      if (standingsBtn) {
+        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5';
+      }
+    } else {
+      standingsPane.classList.remove('hidden');
+      problemsPane.classList.add('hidden');
+
+      if (standingsBtn) {
+        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5';
+      }
+      if (problemsBtn) {
+        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5';
+      }
+    }
+  },
+
   // ── Global Initializer ──────────────────────────────────────
   init() {
     document.addEventListener('keydown', (e) => {

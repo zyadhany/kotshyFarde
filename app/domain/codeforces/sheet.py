@@ -60,7 +60,7 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
             return {
                 "status": "failed",
                 "after_deadline": False,
-                "details": {"error": "Student has no Codeforces handle configured."},
+                "details": {"error": "  Student has no Codeforces handle configured."},
             }
 
         deadline = getattr(student_task, "deadline", None)
@@ -121,4 +121,55 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
                 "solved_after_deadline": solved_after_deadline,
                 "problems": problems_map,
             },
+        }
+
+    # ── Page Rendering ────────────────────────────────────────
+
+    def get_render_data(
+        self,
+        task: Any,
+        assignments: List[StudentTask],
+        student_map: Dict[int, Student],
+        session: Any = None,
+    ) -> Dict[str, Any]:
+        """Generate problem list with cohort solve statistics for CF_SHEET."""
+        import re
+
+        total_assigned = len(assignments)
+        sheet_problems = []
+
+        for prob in self.problems:
+            solved_for_prob = 0
+            for a in assignments:
+                res = a.checker_result or {}
+                prob_info = res.get("problems", {}).get(prob, {})
+                if (
+                    prob_info.get("solved") is True
+                    or prob in res.get("solved", [])
+                    or prob in res.get("solved_problems", [])
+                ):
+                    solved_for_prob += 1
+
+            solve_pct = (
+                round((solved_for_prob / total_assigned) * 100) if total_assigned > 0 else 0
+            )
+
+            match = re.match(r"^(\d+)([A-Za-z]\d*)$", prob.strip())
+            link = (
+                f"https://codeforces.com/problemset/problem/{match.group(1)}/{match.group(2)}"
+                if match
+                else f"https://codeforces.com/problemset?search={prob.strip()}"
+            )
+
+            sheet_problems.append({
+                "code": prob,
+                "link": link,
+                "solved_count": solved_for_prob,
+                "total_assigned": total_assigned,
+                "solve_pct": solve_pct,
+            })
+
+        return {
+            "sheet_problems": sheet_problems,
+            "min_solved_required": self.min_solved_count,
         }

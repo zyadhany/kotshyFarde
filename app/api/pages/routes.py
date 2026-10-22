@@ -1,13 +1,11 @@
 """
-app/api/pages.py
-────────────────
+app/api/pages/routes.py
+───────────────────────
 HTML page rendering routes for the high-density, minimalist Kotchy UI.
-Inspired by Linear, GitHub, and Codeforces.
 """
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
@@ -17,6 +15,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
+from app.api.pages.renderers import generate_task_render_data, get_task_sidebar_data
 from app.core.database import get_session
 from app.models.student import Student
 from app.models.student_task import StudentTask
@@ -24,16 +23,8 @@ from app.models.task import Task
 
 router = APIRouter(tags=["Frontend Pages"])
 
-_TEMPLATES_DIR = Path(__file__).resolve().parents[2] / "templates"
+_TEMPLATES_DIR = Path(__file__).resolve().parents[3] / "templates"
 templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
-
-
-def _make_problem_link(prob_str: str) -> str:
-    """Format Codeforces problem search or direct link."""
-    match = re.match(r"^(\d+)([A-Za-z]\d*)$", prob_str.strip())
-    if match:
-        return f"https://codeforces.com/problemset/problem/{match.group(1)}/{match.group(2)}"
-    return f"https://codeforces.com/problemset?search={prob_str.strip()}"
 
 
 # ── Dashboard (/) ──────────────────────────────────────────────
@@ -289,7 +280,7 @@ def task_detail_page(
     request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """2-Column task page (Sidebar: assignment/status | Main: problem list & cohort solve rate)."""
+    """2-Column task page with dynamic render data from domain checker."""
     task = session.get(Task, task_id)
     if not task:
         raise HTTPException(
@@ -303,97 +294,32 @@ def task_detail_page(
     assignments = list(
         session.exec(select(StudentTask).where(StudentTask.task_id == task_id)).all()
     )
-    already_assigned_ids = {a.student_id for a in assignments}
 
-    in_progress_assignments = []
-    completed_assignments = []
+    # 1. Common sidebar data (in progress vs completed assignments)
+    sidebar_data = get_task_sidebar_data(task, assignments, student_map)
 
-    for a in assignments:
-        student = student_map.get(a.student_id)
-        if not student:
-            continue
-
-        res = a.checker_result or {}
-        solved_count = res.get("solved_count", 0)
-
-        if task.task_type == "CF_SHEET":
-            required_count = task.config.get("min_solved_count", len(task.config.get("problems", [])))
-        else:
-            required_count = task.config.get("min_solved", 1)
-
-        item = {
-            "assignment": a,
-            "student": student,
-            "solved_count": solved_count,
-            "required_count": required_count,
-        }
-
-        if a.status in ("completed", "late"):
-            completed_assignments.append(item)
-        else:
-            in_progress_assignments.append(item)
-
-    # Main Area: CF_SHEET problem-level cohort solve stats
-    sheet_problems = []
-    min_solved_required = 0
-
-    if task.task_type == "CF_SHEET":
-        problems = task.config.get("problems", [])
-        min_solved_required = task.config.get("min_solved_count", len(problems))
-        total_assigned = len(assignments)
-
-        for prob in problems:
-            # Count how many students solved this problem
-            solved_for_prob = 0
-            for a in assignments:
-                res = a.checker_result or {}
-                # Check res["problems"][prob]["solved"] or prob in res["solved"]
-                prob_info = res.get("problems", {}).get(prob, {})
-                if prob_info.get("solved") is True or prob in res.get("solved", []):
-                    solved_for_prob += 1
-
-            solve_pct = (
-                round((solved_for_prob / total_assigned) * 100) if total_assigned > 0 else 0
-            )
-
-            sheet_problems.append({
-                "code": prob,
-                "link": _make_problem_link(prob),
-                "solved_count": solved_for_prob,
-                "total_assigned": total_assigned,
-                "solve_pct": solve_pct,
-            })
-
-    # Main Area: CF_CONTEST participants & problems
-    contest_participants = []
-    contest_problems = []
-    if task.task_type == "CF_CONTEST":
-        contest_problems = task.config.get("problems") or []
-        for a in assignments:
-            student = student_map.get(a.student_id)
-            if not student:
-                continue
-            res = a.checker_result or {}
-            contest_participants.append({
-                "student": student,
-                "assignment": a,
-                "solved_count": res.get("solved_count", 0),
-            })
+    # 2. Task-type specific data generated from its corresponding domain class & template map
+    type_render_data, type_template = generate_task_render_data(
+        task=task,
+        assignments=assignments,
+        student_map=student_map,
+        session=session,
+    )
 
     context = {
         "request": request,
         "active_page": "tasks",
         "task": task,
         "all_students": all_students,
-        "all_students_json": [{"id": s.id, "username": s.username, "cf_handle": s.cf_handle or ""} for s in all_students],
-        "already_assigned_student_ids": already_assigned_ids,
+        "all_students_json": [
+            {"id": s.id, "username": s.username, "cf_handle": s.cf_handle or ""}
+            for s in all_students
+        ],
+        "already_assigned_student_ids": {a.student_id for a in assignments},
         "assigned_students": assignments,
-        "in_progress_assignments": in_progress_assignments,
-        "completed_assignments": completed_assignments,
-        "sheet_problems": sheet_problems,
-        "min_solved_required": min_solved_required,
-        "contest_participants": contest_participants,
-        "contest_problems": contest_problems,
+        "type_template": type_template,
+        **sidebar_data,
+        **type_render_data,
     }
 
     return templates.TemplateResponse(request=request, name="tasks/detail.html", context=context)

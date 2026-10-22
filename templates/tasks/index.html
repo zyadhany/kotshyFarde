@@ -18,19 +18,19 @@
                 <button type="button" 
                         data-filter="all"
                         onclick="Kotchy.filterItems('all', '.task-archive-row', 'data-type')"
-                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-900 text-white transition-colors">
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-sky-600 text-white transition-colors">
                     All ({{ tasks|length }})
                 </button>
                 <button type="button" 
                         data-filter="CF_SHEET"
                         onclick="Kotchy.filterItems('CF_SHEET', '.task-archive-row', 'data-type')"
-                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-sky-700 hover:bg-sky-50 transition-colors">
                     Sheets ({{ sheet_count }})
                 </button>
                 <button type="button" 
                         data-filter="CF_CONTEST"
                         onclick="Kotchy.filterItems('CF_CONTEST', '.task-archive-row', 'data-type')"
-                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-sky-700 hover:bg-sky-50 transition-colors">
                     Contests ({{ contest_count }})
                 </button>
             </div>
@@ -38,7 +38,7 @@
             <!-- Create Task Button -->
             <button type="button" 
                     onclick="Kotchy.openModal('create-task-modal')"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors">
                 + Create Task
             </button>
         </div>

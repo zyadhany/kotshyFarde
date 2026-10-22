@@ -49,3 +49,15 @@ class BaseTask(ABC):
             ``{"status": "completed"|"in_progress"|"pending"|"failed", "details": {...}}``
         """
         ...
+
+    # ── Page Rendering ────────────────────────────────────────
+
+    def get_render_data(
+        self,
+        task: Any,
+        assignments: List["StudentTask"],
+        student_map: Dict[int, "Student"],
+        session: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """Generate task-type specific template context data for task detail view."""
+        return {}

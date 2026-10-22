@@ -1,0 +1,21 @@
+<!-- Default fallback template for any task type without a dedicated view -->
+<div class="bg-white border border-zinc-200 rounded-lg p-5">
+    <div class="flex items-center justify-between border-b border-zinc-200 pb-3 mb-4">
+        <div>
+            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Task Configuration</h2>
+            <p class="text-[11px] text-zinc-400">Type: <span class="font-mono text-zinc-700">{{ task.task_type }}</span></p>
+        </div>
+    </div>
+    {% if task.config %}
+        <div class="space-y-2">
+            {% for k, v in task.config.items() %}
+                <div class="flex items-start justify-between text-xs py-1.5 border-b border-zinc-100 last:border-b-0">
+                    <span class="font-mono text-zinc-500">{{ k }}</span>
+                    <span class="font-mono text-zinc-900 font-medium break-all text-right max-w-md">{{ v }}</span>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-zinc-400 italic text-xs">No additional configuration defined for this task.</p>
+    {% endif %}
+</div>

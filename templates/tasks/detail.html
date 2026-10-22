@@ -66,7 +66,7 @@
                     </div>
 
                     <button type="submit" 
-                            class="w-full mt-2 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-colors">
+                            class="w-full mt-2 py-1.5 rounded bg-sky-600 text-white text-xs font-medium hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors">
                         Assign Selected
                     </button>
                 </form>
@@ -177,159 +177,14 @@
                 </div>
             </div>
 
-            <!-- Task Content based on Type -->
-            {% if task.task_type == 'CF_SHEET' %}
-                <!-- CF_SHEET: Problem List Table with Cohort Solve Rates -->
-                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
-                        <div>
-                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Curated Problem Set</h2>
-                            <p class="text-[11px] text-zinc-400">Passing requirement: minimum <strong class="font-mono text-zinc-700">{{ min_solved_required }}</strong> problem(s)</p>
-                        </div>
-                        <span class="font-mono text-xs text-zinc-500">{{ sheet_problems|length }} Problems</span>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
-                                    <th class="py-2.5 px-4 font-mono w-24">Problem</th>
-                                    <th class="py-2.5 px-4">Direct Link</th>
-                                    <th class="py-2.5 px-4 font-mono">Cohort Solve Rate</th>
-                                    <th class="py-2.5 px-4">Progress Bar</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
-                                {% for p in sheet_problems %}
-                                    <tr class="hover:bg-zinc-50/60 transition-colors">
-                                        <td class="py-2.5 px-4 font-mono font-bold text-zinc-900">
-                                            {{ p.code }}
-                                        </td>
-                                        <td class="py-2.5 px-4">
-                                            <a href="{{ p.link }}" target="_blank" 
-                                               class="text-zinc-600 hover:text-zinc-900 underline decoration-zinc-300 font-mono text-[11px] inline-flex items-center gap-1">
-                                                <span>Codeforces Problem</span>
-                                                <span>↗</span>
-                                            </a>
-                                        </td>
-                                        <td class="py-2.5 px-4 font-mono">
-                                            <span class="font-semibold text-zinc-900">{{ p.solved_count }}</span> / {{ p.total_assigned }} Solved
-                                        </td>
-                                        <td class="py-2.5 px-4 min-w-[120px]">
-                                            <div class="flex items-center gap-2">
-                                                <div class="w-24 bg-zinc-100 rounded-full h-1.5 overflow-hidden">
-                                                    <div class="bg-emerald-600 h-1.5 rounded-full" style="width: {{ p.solve_pct }}%"></div>
-                                                </div>
-                                                <span class="font-mono text-[10px] text-zinc-400">{{ p.solve_pct }}%</span>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr>
-                                        <td colspan="4" class="py-6 text-center text-zinc-400 italic">No problems configured for this sheet.</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            {% elif task.task_type == 'CF_CONTEST' %}
-                <!-- CF_CONTEST: Contest Details & Standings -->
-                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
-                        <div>
-                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Codeforces Contest Standings</h2>
-                            <p class="text-[11px] text-zinc-400">Contest #{{ task.config.get('contest_id') }} • Access: {{ task.config.get('access_type', 'public') }}</p>
-                        </div>
-                        <a href="https://codeforces.com/contest/{{ task.config.get('contest_id') }}" target="_blank"
-                           class="text-xs font-mono text-zinc-600 hover:text-zinc-900 underline">
-                            View Official Standings ↗
-                        </a>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
-                                    <th class="py-2.5 px-4">Student</th>
-                                    <th class="py-2.5 px-4 font-mono">CF Handle</th>
-                                    <th class="py-2.5 px-4 font-mono">Solved</th>
-                                    <th class="py-2.5 px-4">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
-                                {% for item in contest_participants %}
-                                    {% set s = item.student %}
-                                    {% set a = item.assignment %}
-                                    <tr class="hover:bg-zinc-50/60 transition-colors">
-                                        <td class="py-2.5 px-4 font-semibold text-zinc-900">
-                                            <a href="/students-page/{{ s.id }}" class="hover:underline">{{ s.username }}</a>
-                                        </td>
-                                        <td class="py-2.5 px-4 font-mono text-zinc-600">
-                                            {{ s.cf_handle or '—' }}
-                                        </td>
-                                        <td class="py-2.5 px-4 font-mono font-medium text-zinc-900">
-                                            {{ item.solved_count }} solved
-                                        </td>
-                                        <td class="py-2.5 px-4 font-mono">
-                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px]
-                                                {% if a.status == 'completed' %}text-emerald-700 bg-emerald-50 border border-emerald-200
-                                                {% else %}text-zinc-600 bg-zinc-100 border border-zinc-200{% endif %}">
-                                                <span class="w-1.5 h-1.5 rounded-full {% if a.status == 'completed' %}bg-emerald-500{% else %}bg-zinc-400{% endif %}"></span>
-                                                {{ 'Qualified' if a.status == 'completed' else 'In Progress' }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                {% else %}
-                                    <tr>
-                                        <td colspan="4" class="py-6 text-center text-zinc-400 italic">No students assigned to this contest yet.</td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-                {% if contest_problems %}
-                <!-- CF_CONTEST: Problems Table -->
-                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
-                        <div>
-                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Contest Problems</h2>
-                            <p class="text-[11px] text-zinc-400">Total: <strong class="font-mono text-zinc-700">{{ contest_problems|length }}</strong> problem(s)</p>
-                        </div>
-                        <span class="font-mono text-xs text-zinc-500">{{ contest_problems|length }} Problems</span>
-                    </div>
-
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
-                            <thead>
-                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
-                                    <th class="py-2.5 px-4 font-mono w-20">Index</th>
-                                    <th class="py-2.5 px-4">Problem Name</th>
-                                    <th class="py-2.5 px-4 text-right">Direct Link</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
-                                {% for p in contest_problems %}
-                                    <tr class="hover:bg-zinc-50/60 transition-colors">
-                                        <td class="py-2.5 px-4 font-mono font-bold text-zinc-900">{{ p.index }}</td>
-                                        <td class="py-2.5 px-4 font-medium text-zinc-800">{{ p.name }}</td>
-                                        <td class="py-2.5 px-4 text-right">
-                                            <a href="https://codeforces.com/contest/{{ task.config.get('contest_id') }}/problem/{{ p.index }}" target="_blank"
-                                               class="text-zinc-600 hover:text-zinc-900 underline decoration-zinc-300 font-mono text-[11px] inline-flex items-center gap-1">
-                                                <span>Codeforces Problem</span>
-                                                <span>↗</span>
-                                            </a>
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-                {% endif %}
+            <!-- Task-Specific Content: loaded dynamically via type map / task_type -->
+            {% if type_template %}
+                {% include type_template ignore missing %}
+            {% else %}
+                {% include [
+                    "tasks/types/" ~ (task.task_type | lower) ~ ".html",
+                    "tasks/types/default.html"
+                ] ignore missing %}
             {% endif %}
 
         </main>
