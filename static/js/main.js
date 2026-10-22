@@ -392,25 +392,35 @@ const Kotchy = {
     if (!problemsPane || !standingsPane) return;
 
     if (tabName === 'problems') {
+      problemsPane.style.setProperty('display', 'block', 'important');
       problemsPane.classList.remove('hidden');
+      standingsPane.style.setProperty('display', 'none', 'important');
       standingsPane.classList.add('hidden');
 
       if (problemsBtn) {
-        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5';
+        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
       }
       if (standingsBtn) {
-        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5';
+        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
       }
+      try {
+        history.replaceState(null, '', '#problems');
+      } catch (e) {}
     } else {
+      standingsPane.style.setProperty('display', 'block', 'important');
       standingsPane.classList.remove('hidden');
+      problemsPane.style.setProperty('display', 'none', 'important');
       problemsPane.classList.add('hidden');
 
       if (standingsBtn) {
-        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5';
+        standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
       }
       if (problemsBtn) {
-        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5';
+        problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
       }
+      try {
+        history.replaceState(null, '', '#standings');
+      } catch (e) {}
     }
   },
 
@@ -430,5 +440,8 @@ const Kotchy = {
     });
   }
 };
+
+window.Kotchy = Kotchy;
+window.switchContestTab = Kotchy.switchContestTab;
 
 document.addEventListener('DOMContentLoaded', () => Kotchy.init());

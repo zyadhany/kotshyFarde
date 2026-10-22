@@ -33,8 +33,8 @@
             <!-- Problems Tab Button -->
             <button type="button" 
                     id="tab-btn-problems"
-                    onclick="Kotchy.switchContestTab('problems')"
-                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5">
+                    onclick="switchContestTab('problems')"
+                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
                 <span>Problems</span>
                 <span class="px-1.5 py-0.2 rounded-full bg-sky-100 text-sky-700 font-mono text-[10px]">{{ contest_problems|length }}</span>
             </button>
@@ -42,8 +42,8 @@
             <!-- Standings Tab Button -->
             <button type="button" 
                     id="tab-btn-standings"
-                    onclick="Kotchy.switchContestTab('standings')"
-                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5">
+                    onclick="switchContestTab('standings')"
+                    class="contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer">
                 <span>Standings</span>
                 <span class="px-1.5 py-0.2 rounded-full bg-slate-200/70 text-slate-700 font-mono text-[10px]">{{ contest_standings|length }}</span>
             </button>
@@ -212,3 +212,74 @@
         </div>
     </div>
 </div>
+
+<script>
+(function() {
+    function switchContestTab(tabName) {
+        var problemsPane = document.getElementById('contest-tab-problems');
+        var standingsPane = document.getElementById('contest-tab-standings');
+        var problemsBtn = document.getElementById('tab-btn-problems');
+        var standingsBtn = document.getElementById('tab-btn-standings');
+
+        if (!problemsPane || !standingsPane) return;
+
+        if (tabName === 'standings') {
+            problemsPane.style.setProperty('display', 'none', 'important');
+            problemsPane.classList.add('hidden');
+            standingsPane.style.setProperty('display', 'block', 'important');
+            standingsPane.classList.remove('hidden');
+
+            if (standingsBtn) {
+                standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
+            }
+            if (problemsBtn) {
+                problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
+            }
+            try {
+                history.replaceState(null, '', '#standings');
+            } catch (e) {}
+        } else {
+            standingsPane.style.setProperty('display', 'none', 'important');
+            standingsPane.classList.add('hidden');
+            problemsPane.style.setProperty('display', 'block', 'important');
+            problemsPane.classList.remove('hidden');
+
+            if (problemsBtn) {
+                problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
+            }
+            if (standingsBtn) {
+                standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
+            }
+            try {
+                history.replaceState(null, '', '#problems');
+            } catch (e) {}
+        }
+    }
+
+    window.switchContestTab = switchContestTab;
+    if (typeof Kotchy !== 'undefined') {
+        Kotchy.switchContestTab = switchContestTab;
+    }
+
+    // Attach direct event listeners to ensure click works regardless of inline handlers
+    var pBtn = document.getElementById('tab-btn-problems');
+    var sBtn = document.getElementById('tab-btn-standings');
+    if (pBtn) {
+        pBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            switchContestTab('problems');
+        });
+    }
+    if (sBtn) {
+        sBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            switchContestTab('standings');
+        });
+    }
+
+    // Auto-activate tab from URL hash if provided
+    if (window.location.hash === '#standings') {
+        switchContestTab('standings');
+    }
+})();
+</script>

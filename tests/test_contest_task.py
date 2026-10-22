@@ -27,7 +27,7 @@ def test_get_contest_problems_success():
         problems = get_contest_problems(1878, use_auth=False)
         mock_req.assert_called_once_with(
             "contest.standings",
-            {"contestId": "1878", "from": "1", "count": "1"},
+            {"contestId": "1878"},
             use_auth=False,
         )
         assert len(problems) == 3
