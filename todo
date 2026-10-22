@@ -1,0 +1,7 @@
+for codeforces contest task
+-   list that contain index and name of all the problems
+    -   make function that gnerate that last using function from codeforces_api
+    -   make geter for it
+        - if it's null will gnerate it
+        - else will return it directly
+

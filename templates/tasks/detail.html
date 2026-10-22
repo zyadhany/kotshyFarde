@@ -290,6 +290,46 @@
                         </table>
                     </div>
                 </div>
+
+                {% if contest_problems %}
+                <!-- CF_CONTEST: Problems Table -->
+                <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+                    <div class="px-4 py-3 border-b border-zinc-200 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Contest Problems</h2>
+                            <p class="text-[11px] text-zinc-400">Total: <strong class="font-mono text-zinc-700">{{ contest_problems|length }}</strong> problem(s)</p>
+                        </div>
+                        <span class="font-mono text-xs text-zinc-500">{{ contest_problems|length }} Problems</span>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
+                                    <th class="py-2.5 px-4 font-mono w-20">Index</th>
+                                    <th class="py-2.5 px-4">Problem Name</th>
+                                    <th class="py-2.5 px-4 text-right">Direct Link</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-zinc-200 text-zinc-700">
+                                {% for p in contest_problems %}
+                                    <tr class="hover:bg-zinc-50/60 transition-colors">
+                                        <td class="py-2.5 px-4 font-mono font-bold text-zinc-900">{{ p.index }}</td>
+                                        <td class="py-2.5 px-4 font-medium text-zinc-800">{{ p.name }}</td>
+                                        <td class="py-2.5 px-4 text-right">
+                                            <a href="https://codeforces.com/contest/{{ task.config.get('contest_id') }}/problem/{{ p.index }}" target="_blank"
+                                               class="text-zinc-600 hover:text-zinc-900 underline decoration-zinc-300 font-mono text-[11px] inline-flex items-center gap-1">
+                                                <span>Codeforces Problem</span>
+                                                <span>↗</span>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
             {% endif %}
 
         </main>

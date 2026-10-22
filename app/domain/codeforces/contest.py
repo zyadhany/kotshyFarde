@@ -13,12 +13,15 @@ Supports three access modes:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from app.domain.codeforces.base import CodeforcesBaseTask
 from app.models.student import Student
 from app.models.student_task import StudentTask
-from app.services.codeforces_api import get_contest_problems_status
+from app.services.codeforces_api import (
+    get_contest_problems,
+    get_contest_problems_status,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         contest_id: int,
         min_solved: int,
         access_type: str = "public",
+        problems: Optional[List[Dict[str, str]]] = None,
     ) -> None:
         if access_type not in _VALID_ACCESS_TYPES:
             raise ValueError(
@@ -44,15 +48,54 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         self.contest_id = contest_id
         self.min_solved = min_solved
         self.access_type = access_type
+        self._problems: Optional[List[Dict[str, str]]] = problems
+
+    # ── Problem List & Generation ─────────────────────────────
+
+    def generate_problems(self) -> List[Dict[str, str]]:
+        """Fetch and populate the list containing index and name of all contest problems
+        using ``get_contest_problems`` from ``codeforces_api``."""
+        use_auth = self.access_type == "private_managed"
+        self._problems = get_contest_problems(contest_id=self.contest_id, use_auth=use_auth)
+        return self._problems
+
+    # Alias for generate_problems
+    fetch_problems = generate_problems
+
+    @property
+    def problems(self) -> List[Dict[str, str]]:
+        """List containing index and name of all problems in the contest.
+
+        Getter logic:
+        - If null (None), generates it using codeforces_api.
+        - Otherwise, returns it directly.
+        """
+        if self._problems is None:
+            return self.generate_problems()
+        return self._problems
+
+    @problems.setter
+    def problems(self, value: Optional[List[Dict[str, str]]]) -> None:
+        self._problems = value
+
+    def get_problems(self) -> List[Dict[str, str]]:
+        """Getter for contest problems list.
+
+        If null (None), generates it using codeforces_api; otherwise returns it directly.
+        """
+        return self.problems
 
     # ── Serialisation ─────────────────────────────────────────
 
     def to_dict(self) -> Dict[str, Any]:
-        return {
+        data: Dict[str, Any] = {
             "contest_id": self.contest_id,
             "min_solved": self.min_solved,
             "access_type": self.access_type,
         }
+        if self._problems is not None:
+            data["problems"] = self._problems
+        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CodeforcesContestTask":
@@ -60,6 +103,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             contest_id=int(data["contest_id"]),
             min_solved=int(data.get("min_solved", 0)),
             access_type=data.get("access_type", "public"),
+            problems=data.get("problems"),
         )
 
     # ── Verification ──────────────────────────────────────────

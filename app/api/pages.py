@@ -364,9 +364,11 @@ def task_detail_page(
                 "solve_pct": solve_pct,
             })
 
-    # Main Area: CF_CONTEST participants
+    # Main Area: CF_CONTEST participants & problems
     contest_participants = []
+    contest_problems = []
     if task.task_type == "CF_CONTEST":
+        contest_problems = task.config.get("problems") or []
         for a in assignments:
             student = student_map.get(a.student_id)
             if not student:
@@ -391,6 +393,7 @@ def task_detail_page(
         "sheet_problems": sheet_problems,
         "min_solved_required": min_solved_required,
         "contest_participants": contest_participants,
+        "contest_problems": contest_problems,
     }
 
     return templates.TemplateResponse(request=request, name="tasks/detail.html", context=context)

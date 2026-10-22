@@ -274,6 +274,34 @@ def get_contest_submissions(
     ]
 
 
+def get_contest_problems(
+    contest_id: int,
+    use_auth: bool = False,
+) -> List[Dict[str, str]]:
+    """Fetch the list of problems in a contest from Codeforces.
+
+    Returns
+    -------
+    list of dicts
+        Each element is a dict with ``{"index": <str>, "name": <str>}``,
+        e.g. ``[{"index": "A", "name": "Theatre Square"}, ...]``.
+    """
+    try:
+        standings = _request(
+            "contest.standings",
+            {"contestId": str(contest_id), "from": "1", "count": "1"},
+            use_auth=use_auth,
+        )
+        raw_problems = standings.get("problems", []) if isinstance(standings, dict) else []
+        return [
+            {"index": str(p.get("index", "")), "name": str(p.get("name", ""))}
+            for p in raw_problems
+        ]
+    except Exception as exc:
+        logger.warning("Failed to fetch problems for contest %s: %s", contest_id, exc)
+        return []
+
+
 def get_contest_problems_status(
     handle: str,
     contest_id: int,
@@ -334,12 +362,8 @@ def get_contest_problems_status(
     # Try to fetch the total number of problems from contest.standings
     total_problems: Optional[int] = None
     try:
-        standings = _request(
-            "contest.standings",
-            {"contestId": str(contest_id), "from": "1", "count": "1"},
-            use_auth=use_auth,
-        )
-        total_problems = len(standings.get("problems", []))
+        contest_probs = get_contest_problems(contest_id, use_auth=use_auth)
+        total_problems = len(contest_probs) if contest_probs else None
     except Exception:
         logger.debug("Could not fetch standings for contest %s", contest_id)
 
