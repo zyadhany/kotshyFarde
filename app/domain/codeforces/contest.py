@@ -83,6 +83,8 @@ class CodeforcesContestTask(CodeforcesBaseTask):
 
         If null (None), generates it using codeforces_api; otherwise returns it directly.
         """
+        if self.problems is None:
+            self.generate_problems()
         return self.problems
 
     # ── Serialisation ─────────────────────────────────────────
@@ -168,7 +170,6 @@ class CodeforcesContestTask(CodeforcesBaseTask):
     ) -> Dict[str, Any]:
         """Generate problems list and standings matrix for CF_CONTEST."""
         raw_problems = self.problems or []
-
         # If problems list not in task config or instance, attempt to fetch using CF API
         if not raw_problems and self.contest_id:
             try:

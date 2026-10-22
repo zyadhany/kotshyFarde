@@ -289,7 +289,7 @@ def get_contest_problems(
     try:
         standings = _request(
             "contest.standings",
-            {"contestId": str(contest_id), "from": "1", "count": "1"},
+            {"contestId": str(contest_id)},
             use_auth=use_auth,
         )
         raw_problems = standings.get("problems", []) if isinstance(standings, dict) else []
