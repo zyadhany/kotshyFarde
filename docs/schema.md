@@ -6,23 +6,24 @@ The schema is architected to run seamlessly on a local **SQLite** database while
 
 ---
 
-## 1. Students Table (`students`)
+## 1. Users Table (`users`)
 
-Stores core profile credentials and handles for competitive programming and professional platforms.
+Stores core profile credentials, handles for competitive programming, and role ("Student" or "coash").
 
 | Field | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
-| `id` | `INTEGER` | `PRIMARY KEY AUTOINCREMENT` | Unique student identifier |
+| `id` | `INTEGER` | `PRIMARY KEY AUTOINCREMENT` | Unique user identifier |
 | `username` | `VARCHAR(50)` | `NOT NULL, UNIQUE` | Login handle/username |
 | `email` | `VARCHAR(100)` | `NOT NULL, UNIQUE` | Contact email address |
 | `password_hash` | `VARCHAR(255)` | `NOT NULL` | Securely hashed password |
+| `role` | `VARCHAR(20)` | `NOT NULL, DEFAULT 'Student'` | Role: `Student` or `coash` (coach) |
 | `phone_number` | `VARCHAR(20)` | `NULLABLE` | WhatsApp / mobile contact number |
 | `cf_handle` | `VARCHAR(50)` | `NULLABLE, INDEX` | Codeforces handle |
 | `vjudge_handle` | `VARCHAR(50)` | `NULLABLE` | VJudge handle |
 | `atcoder_handle` | `VARCHAR(50)` | `NULLABLE` | AtCoder handle |
 | `cses_id` | `VARCHAR(50)` | `NULLABLE` | CSES account ID/username |
 | `linkedin_url` | `VARCHAR(255)` | `NULLABLE` | LinkedIn profile URL |
-| `description` | `TEXT` | `NULLABLE` | Student background, notes, and current skill level |
+| `description` | `TEXT` | `NULLABLE` | User background, notes, and current skill level |
 | `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Account creation timestamp |
 | `updated_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Last profile update timestamp |
 
@@ -68,7 +69,7 @@ Associative junction table linking students to tasks (Many-to-Many). Manages ind
 | Field | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | `INTEGER` | `PRIMARY KEY AUTOINCREMENT` | Unique assignment identifier |
-| `student_id` | `INTEGER` | `FOREIGN KEY (students.id) NOT NULL` | References the student |
+| `student_id` | `INTEGER` | `FOREIGN KEY (users.id) NOT NULL` | References the student (user) |
 | `task_id` | `INTEGER` | `FOREIGN KEY (tasks.id) NOT NULL` | References the assigned task |
 | `start_date` | `DATETIME` | `NOT NULL` | Start timestamp for this student |
 | `deadline` | `DATETIME` | `NOT NULL` | Due date and submission deadline for this student |

@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Tuple
 from sqlmodel import Session
 
 from app.domain.factory import TaskFactory
-from app.models.student import Student
 from app.models.student_task import StudentTask
 from app.models.task import Task
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ DEFAULT_TASK_TEMPLATE = "tasks/types/default.html"
 def generate_task_render_data(
     task: Task,
     assignments: List[StudentTask],
-    student_map: Dict[int, Student],
+    student_map: Dict[int, User],
     session: Session,
 ) -> Tuple[Dict[str, Any], str]:
     """Generate template context data and resolve template file for a task type.
@@ -74,7 +74,7 @@ def generate_task_render_data(
 def get_task_sidebar_data(
     task: Task,
     assignments: List[StudentTask],
-    student_map: Dict[int, Student],
+    student_map: Dict[int, User],
 ) -> Dict[str, Any]:
     """Partition assignments into In Progress and Completed for the sidebar."""
     in_progress_assignments = []

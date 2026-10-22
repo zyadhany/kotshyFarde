@@ -1,7 +1,7 @@
 """
-app/models/student.py
-─────────────────────
-ORM model for the ``students`` table.
+app/models/user.py
+──────────────────
+ORM model for the ``users`` table.
 See docs/schema.md §1 for the full column specification.
 """
 
@@ -17,15 +17,16 @@ def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-class Student(SQLModel, table=True):
-    """Core profile + competitive-programming handles for a tracked student."""
+class User(SQLModel, table=True):
+    """Core profile + competitive-programming handles and role for a user."""
 
-    __tablename__ = "students"
+    __tablename__ = "users"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     username: str = Field(max_length=50, nullable=False, unique=True, index=True)
     email: str = Field(max_length=100, nullable=False, unique=True)
     password_hash: str = Field(max_length=255, nullable=False)
+    role: str = Field(default="Student", max_length=20)  # "Student" or "coash" (coach)
 
     phone_number: Optional[str] = Field(default=None, max_length=20)
 

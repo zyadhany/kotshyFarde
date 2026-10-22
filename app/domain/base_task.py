@@ -14,8 +14,8 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.models.student import Student
     from app.models.student_task import StudentTask
+    from app.models.user import User
 
 
 class BaseTask(ABC):
@@ -40,7 +40,7 @@ class BaseTask(ABC):
     # ── Verification ──────────────────────────────────────────
 
     @abstractmethod
-    def check(self, student: "Student", student_task: "StudentTask", **kwargs: Any) -> Dict[str, Any]:
+    def check(self, student: "User", student_task: "StudentTask", **kwargs: Any) -> Dict[str, Any]:
         """Run the verification logic for a student assignment.
 
         Returns
@@ -56,7 +56,7 @@ class BaseTask(ABC):
         self,
         task: Any,
         assignments: List["StudentTask"],
-        student_map: Dict[int, "Student"],
+        student_map: Dict[int, "User"],
         session: Optional[Any] = None,
     ) -> Dict[str, Any]:
         """Generate task-type specific template context data for task detail view."""

@@ -21,7 +21,7 @@ class StudentTask(SQLModel, table=True):
     __tablename__ = "student_tasks"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    student_id: int = Field(foreign_key="students.id", nullable=False, index=True)
+    student_id: int = Field(foreign_key="users.id", nullable=False, index=True)
     task_id: int = Field(foreign_key="tasks.id", nullable=False, index=True)
 
     start_date: datetime = Field(nullable=False)

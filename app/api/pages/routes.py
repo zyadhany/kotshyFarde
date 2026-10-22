@@ -17,9 +17,9 @@ from sqlmodel import Session, select
 
 from app.api.pages.renderers import generate_task_render_data, get_task_sidebar_data
 from app.core.database import get_session
-from app.models.student import Student
 from app.models.student_task import StudentTask
 from app.models.task import Task
+from app.models.user import User
 
 router = APIRouter(tags=["Frontend Pages"])
 
@@ -34,7 +34,7 @@ def dashboard_page(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Coach Command Center: 3 student metrics + active cohort list."""
-    students = list(session.exec(select(Student).order_by(Student.id)).all())
+    students = list(session.exec(select(User).order_by(User.id)).all())
     assignments = list(session.exec(select(StudentTask)).all())
 
     total_students = len(students)
@@ -125,7 +125,7 @@ def students_index_page(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """All students table + Add Student modal."""
-    students = list(session.exec(select(Student).order_by(Student.id)).all())
+    students = list(session.exec(select(User).order_by(User.id)).all())
 
     context = {
         "request": request,
@@ -144,7 +144,7 @@ def student_detail_page(
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """Student profile: metadata and sorted task list (In Progress first)."""
-    student = session.get(Student, student_id)
+    student = session.get(User, student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -288,7 +288,7 @@ def task_detail_page(
             detail=f"Task #{task_id} not found.",
         )
 
-    all_students = list(session.exec(select(Student).order_by(Student.username)).all())
+    all_students = list(session.exec(select(User).order_by(User.username)).all())
     student_map = {s.id: s for s in all_students}
 
     assignments = list(

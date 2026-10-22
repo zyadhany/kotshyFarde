@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-from app.api import assignments, pages, students, tasks
+from app.api import assignments, pages, students, tasks, users
 from app.core.database import init_db
 
 
@@ -51,6 +51,7 @@ app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
 # ── Register Frontend & API Routers ───────────────────────────
 app.include_router(pages.router)
+app.include_router(users.router)
 app.include_router(students.router)
 app.include_router(tasks.router)
 app.include_router(assignments.router)

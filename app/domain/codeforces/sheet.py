@@ -11,8 +11,8 @@ import logging
 from typing import Any, Dict, List
 
 from app.domain.codeforces.base import CodeforcesBaseTask
-from app.models.student import Student
 from app.models.student_task import StudentTask
+from app.models.user import User
 from app.services.codeforces_api import (
     get_problem_solve_status,
     get_user_submissions,
@@ -48,7 +48,7 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
 
     # ── Verification ──────────────────────────────────────────
 
-    def check(self, student: Student, student_task: StudentTask, **kwargs: Any) -> Dict[str, Any]:
+    def check(self, student: User, student_task: StudentTask, **kwargs: Any) -> Dict[str, Any]:
         """Evaluate how many sheet problems the student solved.
 
         Checks whether the student solved at least min_solved_count problems.
@@ -129,7 +129,7 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
         self,
         task: Any,
         assignments: List[StudentTask],
-        student_map: Dict[int, Student],
+        student_map: Dict[int, User],
         session: Any = None,
     ) -> Dict[str, Any]:
         """Generate problem list with cohort solve statistics for CF_SHEET."""

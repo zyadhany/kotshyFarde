@@ -16,8 +16,8 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from app.domain.codeforces.base import CodeforcesBaseTask
-from app.models.student import Student
 from app.models.student_task import StudentTask
+from app.models.user import User
 from app.services.codeforces_api import (
     get_contest_problems,
     get_contest_problems_status,
@@ -110,7 +110,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
 
     # ── Verification ──────────────────────────────────────────
 
-    def check(self, student: Student, student_task: StudentTask, **kwargs: Any) -> Dict[str, Any]:
+    def check(self, student: User, student_task: StudentTask, **kwargs: Any) -> Dict[str, Any]:
         """Query the CF API for the student's contest participation and compare
         against ``min_solved``.
 
@@ -165,7 +165,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         self,
         task: Any,
         assignments: List[StudentTask],
-        student_map: Dict[int, Student],
+        student_map: Dict[int, User],
         session: Any = None,
     ) -> Dict[str, Any]:
         """Generate problems list and standings matrix for CF_CONTEST."""

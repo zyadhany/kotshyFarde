@@ -1,7 +1,7 @@
 """
-app/schemas/student.py
-──────────────────────
-Schemas for Student creation, update, and response serialization.
+app/schemas/user.py
+───────────────────
+Schemas for User creation, update, and response serialization.
 """
 
 from __future__ import annotations
@@ -12,9 +12,10 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict
 
 
-class StudentBase(BaseModel):
+class UserBase(BaseModel):
     username: str
     email: str
+    role: str = "Student"  # Can be "Student" or "coash" (coach)
     phone_number: Optional[str] = None
     cf_handle: Optional[str] = None
     vjudge_handle: Optional[str] = None
@@ -24,13 +25,14 @@ class StudentBase(BaseModel):
     description: Optional[str] = None
 
 
-class StudentCreate(StudentBase):
+class UserCreate(UserBase):
     password_hash: str = "placeholder"
 
 
-class StudentUpdate(BaseModel):
+class UserUpdate(BaseModel):
     username: Optional[str] = None
     email: Optional[str] = None
+    role: Optional[str] = None
     password_hash: Optional[str] = None
     phone_number: Optional[str] = None
     cf_handle: Optional[str] = None
@@ -41,7 +43,7 @@ class StudentUpdate(BaseModel):
     description: Optional[str] = None
 
 
-class StudentRead(StudentBase):
+class UserRead(UserBase):
     id: int
     password_hash: str
     created_at: datetime

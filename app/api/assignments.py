@@ -18,9 +18,9 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.database import get_session
 from app.domain.factory import TaskFactory
-from app.models.student import Student
 from app.models.student_task import StudentTask
 from app.models.task import Task
+from app.models.user import User
 from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentRead,
@@ -53,7 +53,7 @@ def assign_task(
 ) -> StudentTask:
     """Assign a task to a student with optional custom start_date and deadline."""
     # Verify student exists
-    student = session.get(Student, assignment_in.student_id)
+    student = session.get(User, assignment_in.student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -103,7 +103,7 @@ def get_student_assignments(
     session: Session = Depends(get_session),
 ) -> List[AssignmentWithTaskRead]:
     """Fetch all assignments for a specific student with associated task details."""
-    student = session.get(Student, student_id)
+    student = session.get(User, student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -147,7 +147,7 @@ def check_assignment(
         )
 
     # 2. Fetch student
-    student = session.get(Student, assignment.student_id)
+    student = session.get(User, assignment.student_id)
     if not student:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

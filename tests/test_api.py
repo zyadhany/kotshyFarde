@@ -15,9 +15,9 @@ from sqlmodel.pool import StaticPool
 from app.core.config import _parse_deadline, settings
 from app.core.database import get_session
 from app.main import app
-from app.models.student import Student
 from app.models.student_task import StudentTask
 from app.models.task import Task
+from app.models.user import User
 
 # In-memory SQLite engine for isolated tests
 test_engine = create_engine(
@@ -108,6 +108,7 @@ def test_create_and_get_student(client):
     assert data["id"] is not None
     assert data["username"] == "ahmed_aly"
     assert data["cf_handle"] == "ahmed_cf"
+    assert data["role"] == "Student"
     student_id = data["id"]
 
     # Duplicate student fails
@@ -118,6 +119,7 @@ def test_create_and_get_student(client):
     res_get = client.get(f"/students/{student_id}")
     assert res_get.status_code == 200
     assert res_get.json()["email"] == "ahmed@example.com"
+    assert res_get.json()["role"] == "Student"
 
     # Get non-existent student -> 404
     assert client.get("/students/99999").status_code == 404
@@ -145,6 +147,40 @@ def test_create_and_get_student(client):
 
     # Ensure deleted
     assert client.get(f"/students/{student_id}").status_code == 404
+
+
+def test_user_model_and_role(client):
+    """Verify User model maps to users table and supports role parameter ('Student' or 'coash')."""
+    assert User.__tablename__ == "users"
+
+    coach_payload = {
+        "username": "coach_ziad",
+        "email": "coach@example.com",
+        "password_hash": "coachpass",
+        "role": "coash",
+        "cf_handle": "coach_cf",
+    }
+    res = client.post("/users/", json=coach_payload)
+    assert res.status_code == 201
+    data = res.json()
+    assert data["role"] == "coash"
+    assert data["username"] == "coach_ziad"
+    user_id = data["id"]
+
+    # Retrieve user from /users/{id}
+    res_get = client.get(f"/users/{user_id}")
+    assert res_get.status_code == 200
+    assert res_get.json()["role"] == "coash"
+
+    # Update role to Student
+    res_put = client.put(f"/users/{user_id}", json={"role": "Student"})
+    assert res_put.status_code == 200
+    assert res_put.json()["role"] == "Student"
+
+    # Delete user via /users/{id}
+    res_del = client.delete(f"/users/{user_id}")
+    assert res_del.status_code == 200
+    assert client.get(f"/users/{user_id}").status_code == 404
 
 
 # ── Tasks Router Tests ────────────────────────────────────────

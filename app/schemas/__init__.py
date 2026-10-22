@@ -4,7 +4,7 @@ app/schemas
 Pydantic / SQLModel schemas for request bodies and API responses.
 """
 
-from app.schemas.student import StudentCreate, StudentRead, StudentUpdate
+from app.schemas.user import UserCreate, UserRead, UserUpdate
 from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from app.schemas.assignment import (
     AssignmentCreate,
@@ -14,9 +14,9 @@ from app.schemas.assignment import (
 )
 
 __all__ = [
-    "StudentCreate",
-    "StudentRead",
-    "StudentUpdate",
+    "UserCreate",
+    "UserRead",
+    "UserUpdate",
     "TaskCreate",
     "TaskRead",
     "TaskUpdate",
