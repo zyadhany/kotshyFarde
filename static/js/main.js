@@ -73,10 +73,13 @@ const Kotchy = {
       const payload = {
         username: form.username.value.trim(),
         email: form.email.value.trim(),
-        password_hash: 'placeholder_hash',
         cf_handle: form.cf_handle.value.trim() || null,
         vjudge_handle: form.vjudge_handle.value.trim() || null,
       };
+
+      if (form.password && form.password.value.trim()) {
+        payload.password = form.password.value.trim();
+      }
 
       try {
         btn.disabled = true;
@@ -100,6 +103,101 @@ const Kotchy = {
       } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
+      }
+    },
+
+    async submitEdit(event, studentId) {
+      event.preventDefault();
+      const form = event.target;
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+
+      const payload = {
+        username: form.username.value.trim(),
+        email: form.email.value.trim(),
+        role: form.role ? form.role.value : 'student',
+        is_active: form.is_active ? form.is_active.value === 'true' : true,
+        phone_number: form.phone_number?.value.trim() || null,
+        cf_handle: form.cf_handle?.value.trim() || null,
+        vjudge_handle: form.vjudge_handle?.value.trim() || null,
+        atcoder_handle: form.atcoder_handle?.value.trim() || null,
+        cses_id: form.cses_id?.value.trim() || null,
+        linkedin_url: form.linkedin_url?.value.trim() || null,
+        description: form.description?.value.trim() || null,
+      };
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
+
+        const res = await fetch(`/users/${studentId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to update student profile.');
+
+        Kotchy.showToast(`User ${data.username} updated successfully.`);
+        Kotchy.closeModal('edit-student-modal');
+        setTimeout(() => window.location.reload(), 400);
+      } catch (err) {
+        Kotchy.showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    },
+
+    async resetPassword(studentId, username) {
+      const resetBtn = document.getElementById('reset-pwd-btn');
+      const feedbackDiv = document.getElementById('reset-pwd-feedback');
+      const valueSpan = document.getElementById('reset-pwd-value');
+      const box = document.getElementById('reset-pwd-box');
+      const originalBtnText = resetBtn ? resetBtn.innerHTML : null;
+
+      if (resetBtn) {
+        resetBtn.disabled = true;
+        resetBtn.innerHTML = `<span class="spinner mr-1.5"></span> Resetting...`;
+      }
+
+      try {
+        const res = await fetch(`/users/${studentId}/reset-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to reset password.');
+
+        const defPwd = data.default_password || '12345678';
+
+        // Reveal prominent feedback in the modal
+        if (feedbackDiv) {
+          feedbackDiv.classList.remove('hidden');
+          if (valueSpan) valueSpan.textContent = defPwd;
+        }
+
+        // Highlight the card with clear emerald styling
+        if (box) {
+          box.classList.remove('bg-amber-50', 'bg-amber-50/80', 'border-amber-200');
+          box.classList.add('bg-emerald-50', 'border-emerald-300');
+        }
+
+        // Update button state to success badge
+        if (resetBtn) {
+          resetBtn.className = 'px-3 py-1.5 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors whitespace-nowrap flex items-center justify-center gap-1.5';
+          resetBtn.innerHTML = `✓ Password Reset!`;
+        }
+
+        Kotchy.showToast(`Password for ${username} reset to default: "${defPwd}"`);
+      } catch (err) {
+        Kotchy.showToast(err.message, 'error');
+        if (resetBtn && originalBtnText) {
+          resetBtn.disabled = false;
+          resetBtn.innerHTML = originalBtnText;
+        }
       }
     },
 

@@ -10,12 +10,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
+from app.api.deps import get_current_user, require_coach
 from app.api.pages.renderers import generate_task_render_data, get_task_sidebar_data
+from app.core.config import settings
 from app.core.database import get_session
 from app.models.student_task import StudentTask
 from app.models.task import Task
@@ -31,9 +33,13 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 @router.get("/", response_class=HTMLResponse)
 def dashboard_page(
     request: Request,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> HTMLResponse:
+) -> Response:
     """Coach Command Center: 3 student metrics + active cohort list."""
+    if current_user.is_student():
+        return RedirectResponse(url="/my-profile", status_code=status.HTTP_303_SEE_OTHER)
+
     students = list(session.exec(select(User).order_by(User.id)).all())
     assignments = list(session.exec(select(StudentTask)).all())
 
@@ -104,6 +110,7 @@ def dashboard_page(
 
     context = {
         "request": request,
+        "current_user": current_user,
         "active_page": "dashboard",
         "metrics": metrics,
         "cohort_rows": cohort_rows,
@@ -122,13 +129,15 @@ def dashboard_redirect() -> RedirectResponse:
 @router.get("/students-page", response_class=HTMLResponse)
 def students_index_page(
     request: Request,
+    current_user: User = Depends(require_coach),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """All students table + Add Student modal."""
+    """All students table + Add Student modal (coach only)."""
     students = list(session.exec(select(User).order_by(User.id)).all())
 
     context = {
         "request": request,
+        "current_user": current_user,
         "active_page": "students",
         "students": students,
     }
@@ -141,9 +150,14 @@ def students_index_page(
 def student_detail_page(
     student_id: int,
     request: Request,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
-) -> HTMLResponse:
+) -> Response:
     """Student profile: metadata and sorted task list (In Progress first)."""
+    # Restrict students to only view their own profile
+    if current_user.is_student() and current_user.id != student_id:
+        return RedirectResponse(url="/my-profile", status_code=status.HTTP_303_SEE_OTHER)
+
     student = session.get(User, student_id)
     if not student:
         raise HTTPException(
@@ -217,24 +231,43 @@ def student_detail_page(
 
     context = {
         "request": request,
-        "active_page": "students",
+        "current_user": current_user,
+        "active_page": "my_profile" if (current_user.is_student() and current_user.id == student_id) else "students",
         "student": student,
         "sorted_tasks": task_items,
         "in_progress_count": in_progress_count,
         "completed_count": completed_count,
         "all_tasks": all_tasks,
+        "default_password": (getattr(settings, "DEFAULT_PASSWORD", None) or "12345678").strip() or "12345678",
     }
 
     return templates.TemplateResponse(request=request, name="students/detail.html", context=context)
+
+
+# ── My Profile (/my-profile) ──────────────────────────────────
+@router.get("/my-profile", response_class=HTMLResponse)
+def my_profile_page(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> Response:
+    """Personal student profile and tasks view."""
+    return student_detail_page(
+        student_id=current_user.id,
+        request=request,
+        current_user=current_user,
+        session=session,
+    )
 
 
 # ── Tasks Archive (/tasks-page) ────────────────────────────────
 @router.get("/tasks-page", response_class=HTMLResponse)
 def tasks_index_page(
     request: Request,
+    current_user: User = Depends(require_coach),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Task archive + filter by type + Create Task modal."""
+    """Task archive + filter by type + Create Task modal (coach only)."""
     tasks = list(session.exec(select(Task).order_by(Task.id)).all())
     assignments = list(session.exec(select(StudentTask)).all())
 
@@ -263,6 +296,7 @@ def tasks_index_page(
 
     context = {
         "request": request,
+        "current_user": current_user,
         "active_page": "tasks",
         "tasks": tasks,
         "task_items": task_items,
@@ -278,6 +312,8 @@ def tasks_index_page(
 def task_detail_page(
     task_id: int,
     request: Request,
+    student_id: Optional[int] = None,
+    current_user: User = Depends(get_current_user),
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
     """2-Column task page with dynamic render data from domain checker."""
@@ -295,6 +331,16 @@ def task_detail_page(
         session.exec(select(StudentTask).where(StudentTask.task_id == task_id)).all()
     )
 
+    # Restrict student account to only view tasks that are assigned to them
+    if current_user.is_student():
+        is_assigned = any(a.student_id == current_user.id for a in assignments)
+        if not is_assigned:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied. You can only view tasks assigned to you.",
+            )
+        student_id = current_user.id
+
     # 1. Common sidebar data (in progress vs completed assignments)
     sidebar_data = get_task_sidebar_data(task, assignments, student_map)
 
@@ -304,13 +350,18 @@ def task_detail_page(
         assignments=assignments,
         student_map=student_map,
         session=session,
+        current_user=current_user,
+        target_student_id=student_id,
     )
 
     context = {
         "request": request,
+        "current_user": current_user,
         "active_page": "tasks",
         "task": task,
         "all_students": all_students,
+        "student_map": student_map,
+        "selected_student_id": student_id,
         "all_students_json": [
             {"id": s.id, "username": s.username, "cf_handle": s.cf_handle or ""}
             for s in all_students

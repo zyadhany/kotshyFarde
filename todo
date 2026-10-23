@@ -1,22 +1,34 @@
-- make authntication for user with password using hash 
-- login api, no register
-
-- make login page, add signout buttom at top right of the header
-
-- sperate student and coash views
-
-
+- [DONE] No student can send to any api; all administrative and modifying APIs are restricted to coach accounts. Only necessary APIs (viewing personal assignments & running checks via HttpOnly cookies) are accessible to student accounts.
 
 
 For futer never look at now at all
 
-- make login page and asen
+- for contest show rate of problems if could find it
 
-- make deful password and reset password button to 
+- at contest check return List for attemped problems which got unsuccesfull submution and then color it yellow for the user 
 
-- fix ui header -> متبينش الحاجات الوراها
+- work more in user profile
+    - rating
+
+- make score system
+    - each task has specific score
+    - total standing
+    - each opearation in site make you some score
+
+- add something like theme cp
+    - give me random problem to solve
+        - problem chosing make it random with some specification
+            - tottaly random problem
+            - last problem didn't solve in given rate
+            - problem from previos wrong answers
+    - make contest of $x$ = 4 problems to solve is specific times
 
 - make streak or date that show everyone what he did and when
+
+- make Blitz_Page
+- Make ChessForces Page
+    - chess game that each round has time like 30sec
+    - when go eat anothe pone they give you problem to solve, the one who solve problem first eat the other
 
 - rating view for user
 

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In • Kotchy ICPC Tracker</title>
+
+    <!-- Tailwind CSS (via CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Minimal Custom Overrides -->
+    <link rel="stylesheet" href="/static/css/style.css?v=2">
+</head>
+<body class="bg-white text-slate-800 min-h-screen flex flex-col justify-between antialiased selection:bg-sky-200 selection:text-sky-900">
+
+    <!-- Top Minimal Brand Bar -->
+    <header class="h-14 border-b border-slate-100 px-6 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2.5">
+            <div class="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-sky-600/30">
+                K
+            </div>
+            <span class="font-bold text-base tracking-tight text-slate-900">Kotchy</span>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-50 text-sky-700 border border-slate-200 uppercase tracking-wide font-medium">Tracker</span>
+        </a>
+        <div class="text-xs font-mono text-slate-400">
+            ICPC Training Platform
+        </div>
+    </header>
+
+    <!-- Main Centered Sign-in Box -->
+    <main class="flex-1 flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="bg-white border border-zinc-200 rounded-xl p-7 shadow-xs">
+                
+                <!-- Title & Subtitle -->
+                <div class="mb-6">
+                    <h1 class="text-lg font-bold text-zinc-900 tracking-tight">Sign in to Kotchy</h1>
+                    <p class="text-xs text-zinc-500 mt-1">Enter your credentials to access your dashboard</p>
+                </div>
+
+                <!-- Error Alert Box -->
+                <div id="error-box" class="hidden mb-4 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                    <span class="font-bold text-rose-600">!</span>
+                    <span id="error-message" class="flex-1 leading-relaxed">Invalid credentials.</span>
+                </div>
+
+                <!-- Sign-in Form -->
+                <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                    <input type="hidden" name="next" value="{{ next }}">
+
+                    <div>
+                        <label for="username_or_email" class="block text-xs font-medium text-zinc-700 mb-1.5">
+                            Username or Email
+                        </label>
+                        <input type="text"
+                               id="username_or_email"
+                               name="username_or_email"
+                               required
+                               autocomplete="username"
+                               autofocus
+                               placeholder="e.g. coach or tourist"
+                               class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors">
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="password" class="block text-xs font-medium text-zinc-700">
+                                Password
+                            </label>
+                        </div>
+                        <input type="password"
+                               id="password"
+                               name="password"
+                               required
+                               autocomplete="current-password"
+                               placeholder="••••••••••••"
+                               class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:border-zinc-900 focus:ring-1 focus:ring-zinc-900 transition-colors">
+                    </div>
+
+                    <button type="submit"
+                            id="submit-btn"
+                            class="w-full mt-2 py-2.5 px-4 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-medium transition-colors flex items-center justify-center gap-2 shadow-xs">
+                        <span>Sign In</span>
+                    </button>
+                </form>
+
+                <!-- Footer notice: No public registration -->
+                <div class="mt-6 pt-4 border-t border-zinc-100 text-center">
+                    <p class="text-[11px] text-zinc-400 leading-normal">
+                        Student accounts are provisioned directly by the coach. Contact your coach for access.
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Clean Minimal Footer -->
+    <footer class="border-t border-slate-100 py-4 text-center text-xs text-slate-400">
+        Kotchy ICPC Student Tracking System • Local-First
+    </footer>
+
+    <script>
+        async function handleLoginSubmit(event) {
+            event.preventDefault();
+            const form = event.target;
+            const btn = document.getElementById('submit-btn');
+            const errorBox = document.getElementById('error-box');
+            const errorMessage = document.getElementById('error-message');
+
+            errorBox.classList.add('hidden');
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner"></span> Signing in...`;
+
+            const username_or_email = form.username_or_email.value.trim();
+            const password = form.password.value;
+            const next_url = form.next.value.trim();
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username_or_email: username_or_email,
+                        password: password,
+                        next: next_url || null
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Authentication failed. Please check your credentials.');
+                }
+
+                // Successful login — redirect to returned target URL
+                window.location.href = data.redirect_url || '/';
+            } catch (err) {
+                errorMessage.textContent = err.message;
+                errorBox.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = `<span>Sign In</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

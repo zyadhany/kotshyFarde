@@ -5,12 +5,14 @@
 {% block content %}
 <div class="space-y-6">
 
-    <!-- ── Back Link ───────────────────────────────────────────── -->
+    <!-- ── Back Link (Coach only) ────────────────────────────── -->
+    {% if current_user and current_user.is_coach() %}
     <div>
         <a href="/students-page" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
             ← Back to Students
         </a>
     </div>
+    {% endif %}
 
     <!-- ── Student Profile Header ──────────────────────────────── -->
     <div class="bg-white border border-zinc-200 rounded-lg p-5">
@@ -44,14 +46,21 @@
                 </div>
             </div>
 
-            <!-- Header Action -->
-            <div>
+            <!-- Header Actions: Edit Data & Assign Task (Coach Only) -->
+            {% if current_user and current_user.is_coach() %}
+            <div class="flex items-center gap-2">
+                <button type="button" 
+                        onclick="Kotchy.openModal('edit-student-modal')"
+                        class="px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors shadow-xs">
+                    Edit Profile
+                </button>
                 <button type="button" 
                         onclick="Kotchy.openModal('assign-modal')"
-                        class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors">
+                        class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs">
                     + Assign Task
                 </button>
             </div>
+            {% endif %}
         </div>
     </div>
 
@@ -157,6 +166,156 @@
 
 </div>
 
+{% if current_user and current_user.is_coach() %}
+<!-- ── Edit Student / User Modal ────────────────────────────── -->
+<div id="edit-student-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 max-w-xl w-full rounded-lg p-5 shadow-lg max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100 flex-shrink-0">
+            <div>
+                <h3 class="text-sm font-bold text-zinc-900">Edit User Profile • {{ student.username }}</h3>
+                <p class="text-[11px] text-zinc-500">Update account identity, platform handles, or reset password</p>
+            </div>
+            <button type="button" onclick="Kotchy.closeModal('edit-student-modal')" class="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+        </div>
+
+        <form action="javascript:void(0);" onsubmit="handleEditStudent(event, {{ student.id }}); return false;" class="mt-4 space-y-4 overflow-y-auto pr-1 flex-1">
+            <!-- Basic Details -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Username *</label>
+                    <input type="text" name="username" value="{{ student.username }}" required
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Email Address *</label>
+                    <input type="email" name="email" value="{{ student.email }}" required
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+                </div>
+            </div>
+
+            <!-- Role & Status -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Role</label>
+                    <select name="role" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                        <option value="student" {% if student.role == 'student' %}selected{% endif %}>Student</option>
+                        <option value="coach" {% if student.is_coach() %}selected{% endif %}>Coach</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Account Status</label>
+                    <select name="is_active" class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                        <option value="true" {% if student.is_active %}selected{% endif %}>Active</option>
+                        <option value="false" {% if not student.is_active %}selected{% endif %}>Deactivated</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Phone Number</label>
+                    <input type="text" name="phone_number" value="{{ student.phone_number or '' }}" placeholder="+201..."
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                </div>
+            </div>
+
+            <!-- Platform Handles -->
+            <div class="pt-2 border-t border-zinc-100">
+                <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block mb-2">Platform Handles</span>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">Codeforces Handle</label>
+                        <input type="text" name="cf_handle" value="{{ student.cf_handle or '' }}" placeholder="tourist"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">VJudge Handle</label>
+                        <input type="text" name="vjudge_handle" value="{{ student.vjudge_handle or '' }}" placeholder="tourist_vj"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">AtCoder Handle</label>
+                        <input type="text" name="atcoder_handle" value="{{ student.atcoder_handle or '' }}" placeholder="tourist"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-700 mb-1">CSES ID</label>
+                        <input type="text" name="cses_id" value="{{ student.cses_id or '' }}" placeholder="12345"
+                               class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social & Bio -->
+            <div class="pt-2 border-t border-zinc-100 space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">LinkedIn Profile URL</label>
+                    <input type="url" name="linkedin_url" value="{{ student.linkedin_url or '' }}" placeholder="https://linkedin.com/in/..."
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Bio / Coach Notes</label>
+                    <textarea name="description" rows="2" placeholder="Student background, goals, or coach notes..."
+                              class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">{{ student.description or '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Password Reset Action Box -->
+            <div id="reset-pwd-box" class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 transition-all">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                            <span>Reset Account Password</span>
+                        </div>
+                        <p class="text-[11px] text-amber-700 mt-0.5">
+                            Sets this account's password to default: <code class="font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border border-amber-200 text-amber-900">{{ default_password or '12345678' }}</code>
+                        </p>
+                    </div>
+                    <button type="button" 
+                            id="reset-pwd-btn"
+                            onclick="handleResetPassword({{ student.id }}, '{{ student.username }}')"
+                            class="px-3.5 py-1.5 rounded text-xs font-medium bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-colors whitespace-nowrap flex items-center justify-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span>Reset Password</span>
+                    </button>
+                </div>
+
+                <!-- Dynamic Success Alert (revealed upon reset) -->
+                <div id="reset-pwd-feedback" class="hidden mt-3 p-3 rounded-md bg-emerald-50 border border-emerald-300 text-emerald-900">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <div>
+                                <div class="text-xs font-bold text-emerald-900">Password Reset Successfully!</div>
+                                <div class="text-[11px] text-emerald-700 mt-0.5">
+                                    New password: <span id="reset-pwd-value" class="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-300 text-emerald-900">{{ default_password or '12345678' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="navigator.clipboard.writeText(document.getElementById('reset-pwd-value').innerText); Kotchy.showToast('Default password copied to clipboard!');"
+                                class="px-2 py-1 text-[11px] font-mono font-medium rounded border border-emerald-300 bg-white hover:bg-emerald-100 text-emerald-800 transition-colors shadow-xs">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-zinc-100 flex-shrink-0">
+                <button type="button" onclick="Kotchy.closeModal('edit-student-modal')"
+                        class="px-3 py-1.5 rounded border border-zinc-300 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-3.5 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800 transition-colors shadow-xs">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- ── Assign Task Modal for this Student ───────────────────── -->
 <div id="assign-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
     <div class="bg-white border border-zinc-200 max-w-md w-full rounded-lg p-5 shadow-lg">
@@ -204,9 +363,11 @@
         </form>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
+{% if current_user and current_user.is_coach() %}
 <script>
     async function handleAssignSingle(event) {
         event.preventDefault();
@@ -237,5 +398,113 @@
             btn.disabled = false;
         }
     }
+
+    async function handleResetPassword(studentId, username) {
+        const resetBtn = document.getElementById('reset-pwd-btn');
+        const feedbackDiv = document.getElementById('reset-pwd-feedback');
+        const valueSpan = document.getElementById('reset-pwd-value');
+        const box = document.getElementById('reset-pwd-box');
+        const originalBtnText = resetBtn ? resetBtn.innerHTML : null;
+
+        if (resetBtn) {
+            resetBtn.disabled = true;
+            resetBtn.innerHTML = `<span class="spinner mr-1.5"></span> Resetting...`;
+        }
+
+        try {
+            const res = await fetch(`/users/${studentId}/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed to reset password.');
+
+            const defPwd = data.default_password || '12345678';
+
+            // Reveal prominent in-modal alert
+            if (feedbackDiv) {
+                feedbackDiv.classList.remove('hidden');
+                if (valueSpan) valueSpan.textContent = defPwd;
+            }
+
+            // Highlight the card with clean emerald styling
+            if (box) {
+                box.classList.remove('bg-amber-50', 'border-amber-200');
+                box.classList.add('bg-emerald-50', 'border-emerald-300');
+            }
+
+            // Update button text to success checkmark
+            if (resetBtn) {
+                resetBtn.className = 'px-3.5 py-1.5 rounded text-xs font-semibold bg-emerald-600 text-white shadow-xs transition-colors whitespace-nowrap flex items-center justify-center gap-1.5';
+                resetBtn.innerHTML = `✓ Password Reset!`;
+            }
+
+            if (window.Kotchy && window.Kotchy.showToast) {
+                Kotchy.showToast(`Password for ${username} reset to default: "${defPwd}"`);
+            }
+        } catch (err) {
+            if (window.Kotchy && window.Kotchy.showToast) {
+                Kotchy.showToast(err.message, 'error');
+            } else {
+                alert(err.message);
+            }
+            if (resetBtn && originalBtnText) {
+                resetBtn.disabled = false;
+                resetBtn.innerHTML = originalBtnText;
+            }
+        }
+    }
+
+    async function handleEditStudent(event, studentId) {
+        event.preventDefault();
+        const form = event.target;
+        const btn = form.querySelector('button[type="submit"]');
+        const originalText = btn.innerHTML;
+
+        const payload = {
+            username: form.username.value.trim(),
+            email: form.email.value.trim(),
+            role: form.role ? form.role.value : 'student',
+            is_active: form.is_active ? form.is_active.value === 'true' : true,
+            phone_number: form.phone_number?.value.trim() || null,
+            cf_handle: form.cf_handle?.value.trim() || null,
+            vjudge_handle: form.vjudge_handle?.value.trim() || null,
+            atcoder_handle: form.atcoder_handle?.value.trim() || null,
+            cses_id: form.cses_id?.value.trim() || null,
+            linkedin_url: form.linkedin_url?.value.trim() || null,
+            description: form.description?.value.trim() || null,
+        };
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
+
+            const res = await fetch(`/users/${studentId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'Failed to update student profile.');
+
+            if (window.Kotchy && window.Kotchy.showToast) {
+                Kotchy.showToast(`User ${data.username} updated successfully.`);
+                Kotchy.closeModal('edit-student-modal');
+            }
+            setTimeout(() => window.location.reload(), 400);
+        } catch (err) {
+            if (window.Kotchy && window.Kotchy.showToast) {
+                Kotchy.showToast(err.message, 'error');
+            } else {
+                alert(err.message);
+            }
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
 </script>
+{% endif %}
 {% endblock %}

@@ -15,6 +15,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
+from app.api.deps import get_current_user, require_coach
 from app.core.config import settings
 from app.core.database import get_session
 from app.domain.factory import TaskFactory
@@ -50,8 +51,9 @@ def _to_with_task_read(assignment: StudentTask, session: Session) -> AssignmentW
 def assign_task(
     assignment_in: AssignmentCreate,
     session: Session = Depends(get_session),
+    current_user: User = Depends(require_coach),
 ) -> StudentTask:
-    """Assign a task to a student with optional custom start_date and deadline."""
+    """Assign a task to a student with optional custom start_date and deadline (coach only)."""
     # Verify student exists
     student = session.get(User, assignment_in.student_id)
     if not student:
@@ -101,8 +103,15 @@ def assign_task(
 def get_student_assignments(
     student_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> List[AssignmentWithTaskRead]:
-    """Fetch all assignments for a specific student with associated task details."""
+    """Fetch all assignments for a specific student (coach or the assigned student)."""
+    if current_user.is_student() and current_user.id != student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You can only view your own assignments.",
+        )
+
     student = session.get(User, student_id)
     if not student:
         raise HTTPException(
@@ -121,6 +130,7 @@ def get_student_assignments(
 def get_assignment(
     assignment_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> AssignmentWithTaskRead:
     """Get specific assignment details along with the associated task."""
     assignment = session.get(StudentTask, assignment_id)
@@ -129,6 +139,13 @@ def get_assignment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Assignment with ID {assignment_id} not found.",
         )
+
+    if current_user.is_student() and current_user.id != assignment.student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You can only view your own assignments.",
+        )
+
     return _to_with_task_read(assignment, session)
 
 
@@ -136,14 +153,22 @@ def get_assignment(
 def check_assignment(
     assignment_id: int,
     session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user),
 ) -> AssignmentWithTaskRead:
-    """Run the domain checker for an assignment and persist the results."""
+    """Run the domain checker for an assignment and persist the results (coach or assigned student)."""
     # 1. Fetch assignment
     assignment = session.get(StudentTask, assignment_id)
     if not assignment:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Assignment with ID {assignment_id} not found.",
+        )
+
+    # Authorization: Students can only run check on their own assignments
+    if current_user.is_student() and current_user.id != assignment.student_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You can only check your own assignments.",
         )
 
     # 2. Fetch student

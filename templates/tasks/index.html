@@ -35,12 +35,14 @@
                 </button>
             </div>
 
-            <!-- Create Task Button -->
+            <!-- Create Task Button (Coach only) -->
+            {% if current_user and current_user.is_coach() %}
             <button type="button" 
                     onclick="Kotchy.openModal('create-task-modal')"
                     class="px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors">
                 + Create Task
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -98,11 +100,13 @@
                                        class="px-2 py-1 text-[11px] font-medium rounded bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors">
                                         Details
                                     </a>
+                                    {% if current_user and current_user.is_coach() %}
                                     <button type="button" 
                                             onclick="Kotchy.Task.delete({{ t.id }}, '{{ t.title }}')"
                                             class="px-2 py-1 text-[11px] font-medium rounded text-rose-600 hover:bg-rose-50 transition-colors">
                                         Delete
                                     </button>
+                                    {% endif %}
                                 </div>
                             </td>
                         </tr>
@@ -120,6 +124,7 @@
 
 </div>
 
+{% if current_user and current_user.is_coach() %}
 <!-- ── Create Task Modal ────────────────────────────────────── -->
 <div id="create-task-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
     <div class="bg-white border border-zinc-200 max-w-lg w-full rounded-lg p-5 shadow-lg">
@@ -200,4 +205,5 @@
         </form>
     </div>
 </div>
+{% endif %}
 {% endblock %}

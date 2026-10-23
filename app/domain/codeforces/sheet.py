@@ -131,12 +131,29 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
         assignments: List[StudentTask],
         student_map: Dict[int, User],
         session: Any = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate problem list with cohort solve statistics for CF_SHEET."""
         import re
 
         total_assigned = len(assignments)
         sheet_problems = []
+
+        active_student_id = kwargs.get("target_student_id")
+        current_user = kwargs.get("current_user")
+        if active_student_id is None and current_user:
+            active_student_id = current_user.id
+
+        user_solved_set = set()
+        if active_student_id:
+            user_a = next((a for a in assignments if a.student_id == active_student_id), None)
+            if user_a:
+                res = user_a.checker_result or {}
+                for p_code in (res.get("solved", []) or []) + (res.get("solved_problems", []) or []):
+                    user_solved_set.add(str(p_code).strip().upper())
+                for p_code, p_info in (res.get("problems", {}) or {}).items():
+                    if isinstance(p_info, dict) and p_info.get("solved") is True:
+                        user_solved_set.add(str(p_code).strip().upper())
 
         for prob in self.problems:
             solved_for_prob = 0
@@ -167,6 +184,7 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
                 "solved_count": solved_for_prob,
                 "total_assigned": total_assigned,
                 "solve_pct": solve_pct,
+                "user_solved": prob.strip().upper() in user_solved_set,
             })
 
         return {

@@ -33,6 +33,8 @@ def generate_task_render_data(
     assignments: List[StudentTask],
     student_map: Dict[int, User],
     session: Session,
+    current_user: Optional[User] = None,
+    target_student_id: Optional[int] = None,
 ) -> Tuple[Dict[str, Any], str]:
     """Generate template context data and resolve template file for a task type.
 
@@ -56,6 +58,8 @@ def generate_task_render_data(
                 assignments=assignments,
                 student_map=student_map,
                 session=session,
+                current_user=current_user,
+                target_student_id=target_student_id,
             )
     except ValueError as exc:
         # Custom or unregistered task type (e.g. CSES_SHEET)

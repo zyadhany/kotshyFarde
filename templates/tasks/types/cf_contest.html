@@ -56,33 +56,64 @@
 
     <!-- ── TAB 1: PROBLEMS ──────────────────────────────────────── -->
     <div id="contest-tab-problems" class="contest-tab-pane">
+        <!-- Coach Student Selector (for inspecting individual student solves) -->
+        {% if current_user and current_user.is_coach() and assigned_students|length > 0 %}
+        <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+            <span class="text-slate-600 font-medium flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Highlight Solves for Student:</span>
+            </span>
+            <select onchange="const url = new URL(window.location); if (this.value) { url.searchParams.set('student_id', this.value); } else { url.searchParams.delete('student_id'); } window.location = url.toString();"
+                    class="px-2.5 py-1 rounded border border-slate-300 text-xs font-mono bg-white text-slate-800 focus:outline-none focus:border-sky-500">
+                <option value="">-- All Enrolled Students --</option>
+                {% for a in assigned_students %}
+                    {% set s = student_map.get(a.student_id) if student_map else None %}
+                    {% if s %}
+                        <option value="{{ s.id }}" {% if selected_student_id == s.id %}selected{% endif %}>
+                            {{ s.username }} ({{ a.checker_result.solved_count if a.checker_result else 0 }} solved)
+                        </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
                 <thead>
                     <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-500 font-medium">
                         <th class="py-2.5 px-4 font-mono w-16">Index</th>
                         <th class="py-2.5 px-4">Problem Name</th>
-                        <th class="py-2.5 px-4 font-mono w-44">Number of Solved</th>
-                        <th class="py-2.5 px-4 text-right w-28">Direct Link</th>
+                        <th class="py-2.5 px-4 font-mono text-right w-44">Number of Solved</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 text-slate-700">
                     {% for p in contest_problems %}
-                        <tr class="hover:bg-sky-50/30 transition-colors">
-                            <td class="py-3 px-4 font-mono font-bold text-slate-900 text-sm">
-                                <span class="w-7 h-7 rounded bg-slate-100 border border-slate-200 text-slate-800 inline-flex items-center justify-center font-mono font-bold">
+                        <tr class="transition-colors {% if p.user_solved %}bg-emerald-50/70 hover:bg-emerald-100/60 border-l-4 border-l-emerald-500{% else %}hover:bg-sky-50/30{% endif %}">
+                            <td class="py-3 px-4 font-mono font-bold text-sm">
+                                <span class="w-7 h-7 rounded inline-flex items-center justify-center font-mono font-bold {% if p.user_solved %}bg-emerald-600 text-white shadow-xs{% else %}bg-slate-100 border border-slate-200 text-slate-800{% endif %}">
                                     {{ p.index }}
                                 </span>
                             </td>
                             <td class="py-3 px-4">
-                                <a href="{{ p.link }}" target="_blank"
-                                   class="font-medium text-slate-900 hover:text-sky-600 hover:underline inline-flex items-center gap-1.5">
-                                    <span>{{ p.name }}</span>
-                                    <span class="text-slate-400 text-[11px]">↗</span>
-                                </a>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <a href="{{ p.link }}" target="_blank"
+                                       class="font-semibold text-sm hover:underline inline-flex items-center gap-1.5 {% if p.user_solved %}text-emerald-950 hover:text-emerald-700{% else %}text-slate-900 hover:text-sky-600{% endif %}">
+                                        <span>{{ p.name }}</span>
+                                        <span class="text-slate-400 text-[11px]">↗</span>
+                                    </a>
+                                    {% if p.user_solved %}
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                            <svg class="w-3 h-3 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            <span>Solved</span>
+                                        </span>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td class="py-3 px-4 font-mono">
-                                <div class="flex items-center gap-2">
+                            <td class="py-3 px-4 font-mono text-right">
+                                <div class="flex items-center justify-end gap-2">
                                     <span class="font-bold text-xs {% if p.solved_count > 0 %}text-emerald-700{% else %}text-slate-400{% endif %}">
                                         {{ p.solved_count }}
                                     </span>
@@ -94,17 +125,10 @@
                                     {% endif %}
                                 </div>
                             </td>
-                            <td class="py-3 px-4 text-right">
-                                <a href="{{ p.link }}" target="_blank"
-                                   class="px-2.5 py-1 text-xs font-medium rounded border border-slate-200 text-slate-600 hover:text-sky-700 hover:bg-sky-50 hover:border-sky-300 transition-colors inline-flex items-center gap-1 font-mono">
-                                    <span>CF {{ p.index }}</span>
-                                    <span>↗</span>
-                                </a>
-                            </td>
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="4" class="py-8 text-center text-slate-400 italic">
+                            <td colspan="3" class="py-8 text-center text-slate-400 italic">
                                 No problems found for contest #{{ task.config.get('contest_id') }}.
                             </td>
                         </tr>
@@ -137,14 +161,24 @@
                     {% for row in contest_standings %}
                         {% set s = row.student %}
                         {% set a = row.assignment %}
-                        <tr class="hover:bg-sky-50/30 transition-colors">
+                        <tr class="transition-colors {% if row.is_current_user or row.is_selected_student %}bg-sky-50/70 font-semibold border-y border-sky-200{% else %}hover:bg-sky-50/30{% endif %}">
                             <td class="py-3 px-3 text-left font-mono text-slate-400 font-semibold">
                                 {{ row.rank }}
                             </td>
                             <td class="py-3 px-4 text-left">
-                                <a href="/students-page/{{ s.id }}" class="font-semibold text-slate-900 hover:text-sky-600 hover:underline block truncate max-w-[160px]">
-                                    {{ s.username }}
-                                </a>
+                                {% if current_user and current_user.is_coach() %}
+                                    <a href="/students-page/{{ s.id }}" class="font-semibold text-slate-900 hover:text-sky-600 hover:underline block truncate max-w-[160px]">
+                                        {{ s.username }}
+                                    </a>
+                                {% elif current_user.id == s.id %}
+                                    <a href="/my-profile" class="font-semibold text-slate-900 hover:text-sky-600 hover:underline block truncate max-w-[160px]">
+                                        {{ s.username }} (You)
+                                    </a>
+                                {% else %}
+                                    <span class="font-semibold text-slate-900 block truncate max-w-[160px]">
+                                        {{ s.username }}
+                                    </span>
+                                {% endif %}
                                 {% if s.cf_handle %}
                                     <span class="text-[11px] font-mono text-slate-400 block truncate max-w-[160px]">
                                         {{ s.cf_handle }}
@@ -155,14 +189,14 @@
                                 {{ row.solved_count }}
                             </td>
                             {% for cell in row.problem_cells %}
-                                <td class="py-3 px-3 font-mono text-center">
+                                <td class="py-2.5 px-3 font-mono text-center {% if cell.solved %}bg-emerald-100/90 text-emerald-900 border border-emerald-200/80 font-bold{% elif cell.attempts > 0 %}bg-rose-50 text-rose-700 border border-rose-100{% endif %}">
                                     {% if cell.solved %}
                                         <div class="inline-flex flex-col items-center justify-center">
-                                            <span class="font-bold text-emerald-600 text-sm leading-none">
+                                            <span class="font-bold text-emerald-700 text-sm leading-none">
                                                 {% if cell.attempts > 1 %}+{{ cell.attempts - 1 }}{% else %}+{% endif %}
                                             </span>
                                             {% if cell.after_deadline %}
-                                                <span class="text-[9px] text-amber-600 font-sans font-medium">Late</span>
+                                                <span class="text-[9px] text-amber-700 font-sans font-medium">Late</span>
                                             {% endif %}
                                         </div>
                                     {% elif cell.attempts > 0 %}

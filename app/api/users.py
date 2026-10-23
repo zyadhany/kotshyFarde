@@ -14,12 +14,15 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, col, delete, select
 
+from app.api.deps import require_coach
+from app.core.config import settings
 from app.core.database import get_session
+from app.core.security import get_password_hash
 from app.models.student_task import StudentTask
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 
-router = APIRouter(prefix="/users", tags=["Users"])
+router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(require_coach)])
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -40,7 +43,24 @@ def create_user(
             detail="User with this username or email already exists.",
         )
 
-    user = User(**user_in.model_dump())
+    user_dict = user_in.model_dump()
+    raw_password = user_dict.pop("password", None) or user_dict.pop("password_hash", None)
+    provided_hash = user_dict.pop("hashed_password", None)
+
+    default_pwd = (getattr(settings, "DEFAULT_PASSWORD", None) or "12345678").strip() or "12345678"
+
+    if raw_password and not str(raw_password).startswith(("$2b$", "$2a$")):
+        final_hash = get_password_hash(str(raw_password))
+    elif provided_hash and str(provided_hash).startswith(("$2b$", "$2a$")):
+        final_hash = str(provided_hash)
+    elif provided_hash:
+        final_hash = get_password_hash(str(provided_hash))
+    elif raw_password:
+        final_hash = str(raw_password)
+    else:
+        final_hash = get_password_hash(default_pwd)
+
+    user = User(**user_dict, hashed_password=final_hash)
     session.add(user)
     session.commit()
     session.refresh(user)
@@ -106,6 +126,24 @@ def update_user(
                 detail="Another user with this username or email already exists.",
             )
 
+    # Handle password updating with hashing
+    if "password" in update_data:
+        pwd = update_data.pop("password")
+        if pwd:
+            user.hashed_password = get_password_hash(str(pwd))
+    elif "password_hash" in update_data:
+        pwd = update_data.pop("password_hash")
+        if pwd and not str(pwd).startswith(("$2b$", "$2a$")):
+            user.hashed_password = get_password_hash(str(pwd))
+        elif pwd:
+            user.hashed_password = str(pwd)
+    elif "hashed_password" in update_data:
+        pwd = update_data.pop("hashed_password")
+        if pwd and not str(pwd).startswith(("$2b$", "$2a$")):
+            user.hashed_password = get_password_hash(str(pwd))
+        elif pwd:
+            user.hashed_password = str(pwd)
+
     for field, value in update_data.items():
         setattr(user, field, value)
 
@@ -134,3 +172,29 @@ def delete_user(
     session.delete(user)
     session.commit()
     return {"message": f"User with ID {user_id} deleted successfully."}
+
+
+@router.post("/{user_id}/reset-password", status_code=status.HTTP_200_OK)
+def reset_password(
+    user_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_coach),
+) -> dict:
+    """Reset a user's password to the configured default password (coach only)."""
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with ID {user_id} not found.",
+        )
+
+    default_pwd = (getattr(settings, "DEFAULT_PASSWORD", None) or "12345678").strip() or "12345678"
+    user.hashed_password = get_password_hash(default_pwd)
+    user.updated_at = datetime.now(timezone.utc)
+    session.add(user)
+    session.commit()
+    return {
+        "success": True,
+        "message": f"Password for {user.username} has been reset to default.",
+        "default_password": default_pwd,
+    }

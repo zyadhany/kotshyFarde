@@ -13,12 +13,13 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, delete, select
 
+from app.api.deps import require_coach
 from app.core.database import get_session
 from app.models.student_task import StudentTask
 from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 
-router = APIRouter(prefix="/tasks", tags=["Tasks"])
+router = APIRouter(prefix="/tasks", tags=["Tasks"], dependencies=[Depends(require_coach)])
 
 
 @router.post("/", response_model=TaskRead, status_code=status.HTTP_201_CREATED)

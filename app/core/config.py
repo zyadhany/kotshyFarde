@@ -46,6 +46,12 @@ class Settings:
     # ── Task defaults ─────────────────────────────────────────
     DEFAULT_TASK_DEADLINE: datetime = _parse_deadline(os.getenv("DEFAULT_TASK_DEADLINE"))
 
+    # ── Authentication & Security ──────────────────────────────
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "kotchy-secret-key-development-icpc-2026")
+    ALGORITHM: str = os.getenv("ALGORITHM", "HS256")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
+    DEFAULT_PASSWORD: str = os.getenv("DEFAULT_PASSWORD", "12345678").strip() or "12345678"
+
     # ── Debug ─────────────────────────────────────────────────
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 

@@ -7,9 +7,15 @@
 
     <!-- ── Back Link ───────────────────────────────────────────── -->
     <div>
+        {% if current_user and current_user.is_coach() %}
         <a href="/tasks-page" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
             ← Back to Tasks Archive
         </a>
+        {% else %}
+        <a href="/my-profile" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
+            ← Back to My Tasks
+        </a>
+        {% endif %}
     </div>
 
     <!-- ── Two-Column Layout (Sidebar 30% | Main Area 70%) ──────── -->
@@ -17,7 +23,8 @@
 
         <!-- ── Sidebar (Student Assignment & Status) (col-span-4 = ~33%) ── -->
         <aside class="lg:col-span-4 space-y-5">
-            <!-- 1. Assign Task Box -->
+            <!-- 1. Assign Task Box (Coach Only) -->
+            {% if current_user and current_user.is_coach() %}
             <div class="bg-white border border-zinc-200 rounded-lg p-4">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-900 mb-1">Assign to Students</h3>
                 <p class="text-[11px] text-zinc-500 mb-3">Select checkboxes or enter comma-separated handles</p>
@@ -45,7 +52,7 @@
                                     <span class="font-mono text-zinc-800">{{ s.username }} {% if s.cf_handle %}<span class="text-zinc-400">({{ s.cf_handle }})</span>{% endif %}</span>
                                     <input type="checkbox" value="{{ s.id }}" class="student-assign-checkbox rounded border-zinc-300 text-zinc-900 focus:ring-0"
                                            {% if s.id in already_assigned_student_ids %}disabled title="Already assigned"{% endif %}>
-                                </label>
+                                 </label>
                             {% else %}
                                 <span class="text-zinc-400 italic text-[11px]">No students available</span>
                             {% endfor %}
@@ -71,6 +78,7 @@
                     </button>
                 </form>
             </div>
+            {% endif %}
 
             <!-- 2. Assigned Students List (In Progress & Completed) -->
             <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
@@ -94,20 +102,32 @@
                             {% set s = item.student %}
                             <div class="p-2 rounded border border-zinc-200 bg-white hover:bg-zinc-50 flex items-center justify-between gap-2 text-xs">
                                 <div class="min-w-0">
+                                    {% if current_user and current_user.is_coach() %}
                                     <a href="/students-page/{{ s.id }}" class="font-semibold text-zinc-900 hover:underline block truncate">
                                         {{ s.username }}
                                     </a>
+                                    {% elif current_user.id == s.id %}
+                                    <a href="/my-profile" class="font-semibold text-zinc-900 hover:underline block truncate">
+                                        {{ s.username }} (You)
+                                    </a>
+                                    {% else %}
+                                    <span class="font-semibold text-zinc-900 block truncate">
+                                        {{ s.username }}
+                                    </span>
+                                    {% endif %}
                                     <span id="assignment-solved-{{ a.id }}" class="font-mono text-[11px] text-zinc-500">
                                         {{ item.solved_count }}/{{ item.required_count }} Solved
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    {% if current_user and (current_user.is_coach() or current_user.id == a.student_id) %}
                                     <button type="button" 
                                             data-check-id="{{ a.id }}"
                                             onclick="Kotchy.Assignment.checkAssignment({{ a.id }}, this)"
                                             class="px-2 py-0.5 text-[11px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-100 transition-colors">
                                         Check
                                     </button>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% else %}
@@ -131,9 +151,19 @@
                             {% set s = item.student %}
                             <div class="p-2 rounded border border-zinc-200 bg-white text-zinc-500 flex items-center justify-between gap-2 text-xs">
                                 <div class="min-w-0">
+                                    {% if current_user and current_user.is_coach() %}
                                     <a href="/students-page/{{ s.id }}" class="font-medium text-zinc-800 hover:underline block truncate">
                                         {{ s.username }}
                                     </a>
+                                    {% elif current_user.id == s.id %}
+                                    <a href="/my-profile" class="font-medium text-zinc-800 hover:underline block truncate">
+                                        {{ s.username }} (You)
+                                    </a>
+                                    {% else %}
+                                    <span class="font-medium text-zinc-800 block truncate">
+                                        {{ s.username }}
+                                    </span>
+                                    {% endif %}
                                     <span class="font-mono text-[11px] text-emerald-700">
                                         {{ item.solved_count }}/{{ item.required_count }} Solved
                                     </span>
@@ -167,6 +197,7 @@
                         {% endif %}
                     </div>
 
+                    {% if current_user and current_user.is_coach() %}
                     <div class="flex items-center gap-2">
                         <button type="button" 
                                 onclick="Kotchy.Task.delete({{ task.id }}, '{{ task.title }}')"
@@ -174,6 +205,7 @@
                             Delete
                         </button>
                     </div>
+                    {% endif %}
                 </div>
             </div>
 

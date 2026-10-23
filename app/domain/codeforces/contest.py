@@ -167,6 +167,9 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         assignments: List[StudentTask],
         student_map: Dict[int, User],
         session: Any = None,
+        current_user: Optional[User] = None,
+        target_student_id: Optional[int] = None,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate problems list and standings matrix for CF_CONTEST."""
         raw_problems = self.problems or []
@@ -196,6 +199,30 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             else:
                 raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in ["A", "B", "C", "D", "E"]]
 
+        # Determine target user for "solved by user" indicator
+        active_student_id = target_student_id
+        if active_student_id is None and current_user:
+            active_student_id = current_user.id
+
+        # Fallback for coach view when only 1 student is enrolled
+        if active_student_id is None and len(assignments) == 1:
+            active_student_id = assignments[0].student_id
+
+        user_solved_indices: set[str] = set()
+        if active_student_id:
+            user_assignment = next(
+                (a for a in assignments if a.student_id == active_student_id), None
+            )
+            if user_assignment:
+                res = user_assignment.checker_result or {}
+                per_prob = res.get("per_problem", {})
+                solved_list = res.get("solved_problems", [])
+                for p_idx, p_data in per_prob.items():
+                    if isinstance(p_data, dict) and p_data.get("solved") is True:
+                        user_solved_indices.add(str(p_idx).upper())
+                for p_idx in solved_list:
+                    user_solved_indices.add(str(p_idx).upper())
+
         # Normalize problem objects
         normalized_problems = []
         for item in raw_problems:
@@ -210,6 +237,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
                 "index": idx,
                 "name": name,
                 "link": link,
+                "user_solved": idx in user_solved_indices,
             })
 
         # Calculate solve counts for each problem across all assigned students
@@ -261,6 +289,8 @@ class CodeforcesContestTask(CodeforcesBaseTask):
                 "assignment": a,
                 "solved_count": solved_count,
                 "problem_cells": problem_cells,
+                "is_current_user": bool(current_user and current_user.id == student.id),
+                "is_selected_student": bool(active_student_id and active_student_id == student.id),
             })
 
         # Sort standings: solved_count descending
@@ -273,4 +303,6 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             "contest_standings": contest_standings,
             "contest_participants": contest_standings,
             "total_cohort_solves": total_cohort_solves,
+            "user_solved_indices": list(user_solved_indices),
+            "selected_student_id": active_student_id,
         }

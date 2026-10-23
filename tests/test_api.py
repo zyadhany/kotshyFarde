@@ -36,8 +36,12 @@ app.dependency_overrides[get_session] = override_get_session
 
 
 @pytest.fixture(autouse=True)
-def setup_database():
+def setup_database(monkeypatch):
+    monkeypatch.setattr("app.main.init_db", lambda: None)
     SQLModel.metadata.create_all(test_engine)
+    with Session(test_engine) as session:
+        from app.core.database import seed_default_coach
+        seed_default_coach(session)
     yield
     SQLModel.metadata.drop_all(test_engine)
 
@@ -46,6 +50,13 @@ def setup_database():
 def client():
     with TestClient(app) as c:
         yield c
+
+
+def login_as_coach(client, username="coach", password="adminpassword"):
+    """Helper to authenticate the test client as coach."""
+    res = client.post("/api/auth/login", json={"username_or_email": username, "password": password})
+    assert res.status_code == 200
+    return res
 
 
 # ── Config Tests ──────────────────────────────────────────────
@@ -94,6 +105,7 @@ def test_cors_headers(client):
 
 # ── Students Router Tests ─────────────────────────────────────
 def test_create_and_get_student(client):
+    login_as_coach(client)
     payload = {
         "username": "ahmed_aly",
         "email": "ahmed@example.com",
@@ -108,7 +120,7 @@ def test_create_and_get_student(client):
     assert data["id"] is not None
     assert data["username"] == "ahmed_aly"
     assert data["cf_handle"] == "ahmed_cf"
-    assert data["role"] == "Student"
+    assert data["role"].lower() == "student"
     student_id = data["id"]
 
     # Duplicate student fails
@@ -119,7 +131,7 @@ def test_create_and_get_student(client):
     res_get = client.get(f"/students/{student_id}")
     assert res_get.status_code == 200
     assert res_get.json()["email"] == "ahmed@example.com"
-    assert res_get.json()["role"] == "Student"
+    assert res_get.json()["role"].lower() == "student"
 
     # Get non-existent student -> 404
     assert client.get("/students/99999").status_code == 404
@@ -127,7 +139,7 @@ def test_create_and_get_student(client):
     # List students
     res_list = client.get("/students/")
     assert res_list.status_code == 200
-    assert len(res_list.json()) == 1
+    assert len(res_list.json()) >= 1
 
     # Update student (partial)
     res_put = client.put(f"/students/{student_id}", json={"cf_handle": "new_cf_handle"})
@@ -152,6 +164,7 @@ def test_create_and_get_student(client):
 def test_user_model_and_role(client):
     """Verify User model maps to users table and supports role parameter ('Student' or 'coash')."""
     assert User.__tablename__ == "users"
+    login_as_coach(client)
 
     coach_payload = {
         "username": "coach_ziad",
@@ -185,6 +198,7 @@ def test_user_model_and_role(client):
 
 # ── Tasks Router Tests ────────────────────────────────────────
 def test_create_and_manage_task(client):
+    login_as_coach(client)
     task_payload = {
         "title": "Dynamic Programming Sheet 1",
         "description": "Solve at least 3 DP problems",
@@ -236,6 +250,7 @@ def test_create_and_manage_task(client):
 
 # ── Assignments Router Tests ──────────────────────────────────
 def test_assignments_lifecycle_and_check(client):
+    login_as_coach(client)
     # 1. Create a student
     student_res = client.post(
         "/students/",
@@ -344,6 +359,7 @@ def test_assignments_lifecycle_and_check(client):
 
 
 def test_assignment_check_invalid_task_type(client):
+    login_as_coach(client)
     # Student
     s_res = client.post("/students/", json={"username": "bob", "email": "bob@example.com"})
     s_id = s_res.json()["id"]
@@ -363,6 +379,9 @@ def test_assignment_check_invalid_task_type(client):
 
 # ── Frontend Pages Tests ──────────────────────────────────────
 def test_frontend_pages(client):
+    # Authenticate as coach first
+    login_as_coach(client)
+
     # 1. Seed sample student and task
     s_res = client.post("/students/", json={"username": "alex", "email": "alex@cf.com", "cf_handle": "alex_cf"})
     s_id = s_res.json()["id"]
@@ -457,3 +476,551 @@ def test_frontend_pages(client):
     res_js = client.get("/static/js/main.js")
     assert res_js.status_code == 200
     assert "Kotchy" in res_js.text
+
+
+# ── Authentication & Access Control Tests ──────────────────────
+def test_login_page_renders(client):
+    res = client.get("/login")
+    assert res.status_code == 200
+    assert "Sign in to Kotchy" in res.text
+    assert "Username or Email" in res.text
+    assert "Password" in res.text
+    assert "Sign In" in res.text
+
+
+def test_unauthenticated_page_redirects(client):
+    """Unauthenticated page visits should 303-redirect to /login."""
+    res_root = client.get("/", follow_redirects=False)
+    assert res_root.status_code == 303
+    assert res_root.headers.get("location") == "/login"
+
+    res_students = client.get("/students-page", follow_redirects=False)
+    assert res_students.status_code == 303
+    assert res_students.headers.get("location") == "/login?next=/students-page"
+
+    res_tasks = client.get("/tasks-page", follow_redirects=False)
+    assert res_tasks.status_code == 303
+    assert res_tasks.headers.get("location") == "/login?next=/tasks-page"
+
+    res_my_profile = client.get("/my-profile", follow_redirects=False)
+    assert res_my_profile.status_code == 303
+    assert res_my_profile.headers.get("location") == "/login?next=/my-profile"
+
+
+def test_login_api_coach_and_cookie(client):
+    login_as_coach(client)
+    client.post(
+        "/users/",
+        json={"username": "super_coach", "email": "super_coach@kotchy.dev", "password": "coachpassword", "role": "coach"},
+    )
+    # Login via JSON
+    res = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "super_coach", "password": "coachpassword"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["username"] == "super_coach"
+    assert data["role"] == "coach"
+    assert data["redirect_url"] == "/"
+    assert "access_token" in data
+    assert "access_token" in client.cookies
+
+    # Visiting /login when already logged in as coach redirects to /
+    res_login_page = client.get("/login", follow_redirects=False)
+    assert res_login_page.status_code == 303
+    assert res_login_page.headers.get("location") == "/"
+
+
+def test_login_api_student_and_cookie(client):
+    login_as_coach(client)
+    client.post(
+        "/users/",
+        json={"username": "cp_student", "email": "cp@kotchy.dev", "password": "studentpass", "role": "student"},
+    )
+    res = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "cp_student", "password": "studentpass"},
+    )
+    assert res.status_code == 200
+    data = res.json()
+    assert data["success"] is True
+    assert data["username"] == "cp_student"
+    assert data["role"] == "student"
+    assert data["redirect_url"] == "/my-profile"
+    assert "access_token" in client.cookies
+
+    # Visiting /login when already logged in as student redirects to /my-profile
+    res_login_page = client.get("/login", follow_redirects=False)
+    assert res_login_page.status_code == 303
+    assert res_login_page.headers.get("location") == "/my-profile"
+
+
+def test_login_invalid_credentials_and_deactivated(client):
+    login_as_coach(client)
+    client.post(
+        "/users/",
+        json={"username": "active_user", "email": "active@kotchy.dev", "password": "correct_pass", "role": "student"},
+    )
+
+    # Wrong password -> 400
+    res_wrong = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "active_user", "password": "wrong_password"},
+    )
+    assert res_wrong.status_code == 400
+    assert "Invalid credentials" in res_wrong.json()["detail"]
+
+    # Non-existent user -> 400
+    res_missing = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "ghost_user", "password": "any"},
+    )
+    assert res_missing.status_code == 400
+
+    # Deactivated user -> 403
+    d_res = client.post(
+        "/users/",
+        json={"username": "deactivated_user", "email": "deact@kotchy.dev", "password": "pass", "role": "student"},
+    )
+    d_id = d_res.json()["id"]
+    client.put(f"/users/{d_id}", json={"is_active": False})
+
+    res_deact = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "deactivated_user", "password": "pass"},
+    )
+    assert res_deact.status_code == 403
+    assert "deactivated" in res_deact.json()["detail"].lower()
+
+
+def test_logout_lifecycle(client):
+    login_as_coach(client)
+    client.post(
+        "/users/",
+        json={"username": "logout_coach", "email": "logout@kotchy.dev", "password": "adminpass", "role": "coach"},
+    )
+    client.post(
+        "/api/auth/login",
+        json={"username_or_email": "logout_coach", "password": "adminpass"},
+    )
+    assert "access_token" in client.cookies
+
+    # GET /logout clears cookie and redirects to /login
+    res = client.get("/logout", follow_redirects=False)
+    assert res.status_code == 303
+    assert res.headers.get("location") == "/login"
+    assert client.cookies.get("access_token") is None
+
+    # POST /logout also works
+    client.post(
+        "/api/auth/login",
+        json={"username_or_email": "logout_coach", "password": "adminpass"},
+    )
+    res_post = client.post("/logout", follow_redirects=False)
+    assert res_post.status_code == 303
+    assert client.cookies.get("access_token") is None
+
+
+def test_student_role_access_restrictions(client):
+    login_as_coach(client)
+    # Create coach and 2 students
+    c_res = client.post(
+        "/users/",
+        json={"username": "big_coach", "email": "big@kotchy.dev", "password": "coachpass", "role": "coach"},
+    )
+    s1_res = client.post(
+        "/users/",
+        json={"username": "student_one", "email": "s1@kotchy.dev", "password": "s1pass", "role": "student"},
+    )
+    s2_res = client.post(
+        "/users/",
+        json={"username": "student_two", "email": "s2@kotchy.dev", "password": "s2pass", "role": "student"},
+    )
+    s1_id = s1_res.json()["id"]
+    s2_id = s2_res.json()["id"]
+
+    # Login as student_one
+    client.post(
+        "/api/auth/login",
+        json={"username_or_email": "student_one", "password": "s1pass"},
+    )
+
+    # Student accessing / is redirected to /my-profile
+    res_root = client.get("/", follow_redirects=False)
+    assert res_root.status_code == 303
+    assert res_root.headers.get("location") == "/my-profile"
+
+    # Student accessing coach-only /students-page is forbidden (403)
+    res_students = client.get("/students-page")
+    assert res_students.status_code == 403
+
+    # Student accessing coach-only /tasks-page is forbidden (403)
+    res_tasks = client.get("/tasks-page")
+    assert res_tasks.status_code == 403
+
+    # Student accessing /my-profile gets their own profile
+    res_my_profile = client.get("/my-profile")
+    assert res_my_profile.status_code == 200
+    assert "student_one" in res_my_profile.text
+    # Administrative button "+ Assign Task" is hidden for students
+    assert "+ Assign Task" not in res_my_profile.text
+    assert "← Back to Students" not in res_my_profile.text
+
+    # Student attempting to view another student's detail is redirected to /my-profile
+    res_other = client.get(f"/students-page/{s2_id}", follow_redirects=False)
+    assert res_other.status_code == 303
+    assert res_other.headers.get("location") == "/my-profile"
+
+
+def test_seed_default_coach_creates_account():
+    from app.core.database import seed_default_coach
+    from app.core.security import verify_password
+
+    with Session(test_engine) as session:
+        seed_default_coach(session)
+
+    with Session(test_engine) as session:
+        from sqlmodel import select
+        coach = session.exec(select(User).where(User.username == "coach")).first()
+        assert coach is not None
+        assert coach.email == "coach@kotchy.dev"
+        assert coach.role == "coach"
+        assert coach.is_active is True
+        assert verify_password("adminpassword", coach.hashed_password)
+
+
+def test_create_account_with_default_password(client):
+    """When an account is created without password, it defaults to settings.DEFAULT_PASSWORD."""
+    login_as_coach(client)
+    # Create student without password
+    res = client.post("/students/", json={"username": "nopass_student", "email": "nopass@kotchy.dev"})
+    assert res.status_code == 201
+
+    default_pwd = settings.DEFAULT_PASSWORD or "12345678"
+
+    # Login with default password must succeed
+    login_res = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "nopass_student", "password": default_pwd},
+    )
+    assert login_res.status_code == 200
+    assert login_res.json()["success"] is True
+
+
+def test_reset_password_endpoint(client):
+    """Coach can reset a user password to default; student cannot."""
+    login_as_coach(client)
+    # Create coach and student
+    client.post(
+        "/users/",
+        json={"username": "super_coach_reset", "email": "scr@kotchy.dev", "password": "coachpass", "role": "coach"},
+    )
+    s_res = client.post(
+        "/users/",
+        json={"username": "user_to_reset", "email": "utr@kotchy.dev", "password": "custompass999", "role": "student"},
+    )
+    user_id = s_res.json()["id"]
+
+    # Student cannot reset password (unauthenticated -> 401, student auth -> 403)
+    client.get("/logout")
+    res_unauth = client.post(f"/users/{user_id}/reset-password")
+    assert res_unauth.status_code == 401
+
+    # Login as student
+    client.post("/api/auth/login", json={"username_or_email": "user_to_reset", "password": "custompass999"})
+    res_student_forbidden = client.post(f"/users/{user_id}/reset-password")
+    assert res_student_forbidden.status_code == 403
+
+    # Login as coach
+    client.post("/api/auth/login", json={"username_or_email": "super_coach_reset", "password": "coachpass"})
+
+    # Reset student password
+    res_reset = client.post(f"/users/{user_id}/reset-password")
+    assert res_reset.status_code == 200
+    assert res_reset.json()["success"] is True
+    default_pwd = res_reset.json()["default_password"]
+
+    # Student can now login with default password
+    res_new_login = client.post(
+        "/api/auth/login",
+        json={"username_or_email": "user_to_reset", "password": default_pwd},
+    )
+    assert res_new_login.status_code == 200
+
+
+def test_coach_edit_student_data_and_ui(client):
+    """Coach can edit all student profile data and see the edit modal in UI."""
+    login_as_coach(client)
+    client.post(
+        "/users/",
+        json={"username": "editor_coach", "email": "ec@kotchy.dev", "password": "coachpass", "role": "coach"},
+    )
+    s_res = client.post(
+        "/users/",
+        json={"username": "editable_student", "email": "es@kotchy.dev", "password": "pass", "role": "student"},
+    )
+    s_id = s_res.json()["id"]
+
+    # Login as coach
+    client.post("/api/auth/login", json={"username_or_email": "editor_coach", "password": "coachpass"})
+
+    # Edit student data
+    update_payload = {
+        "username": "edited_student_name",
+        "email": "edited_email@kotchy.dev",
+        "phone_number": "+201012345678",
+        "cf_handle": "edited_cf",
+        "vjudge_handle": "edited_vj",
+        "atcoder_handle": "edited_atc",
+        "cses_id": "99999",
+        "linkedin_url": "https://linkedin.com/in/edited",
+        "description": "Updated ICPC candidate notes",
+    }
+    put_res = client.put(f"/users/{s_id}", json=update_payload)
+    assert put_res.status_code == 200
+    data = put_res.json()
+    assert data["username"] == "edited_student_name"
+    assert data["phone_number"] == "+201012345678"
+    assert data["cf_handle"] == "edited_cf"
+    assert data["description"] == "Updated ICPC candidate notes"
+
+    # Profile view as coach contains Edit Profile and edit-student-modal
+    page_res = client.get(f"/students-page/{s_id}")
+    assert page_res.status_code == 200
+    assert "Edit Profile" in page_res.text
+    assert "edit-student-modal" in page_res.text
+    assert "Reset Account Password" in page_res.text
+
+    # Student viewing personal profile does NOT see Edit Profile or edit-student-modal
+    client.post("/api/auth/login", json={"username_or_email": "edited_student_name", "password": "pass"})
+    my_page = client.get("/my-profile")
+    assert my_page.status_code == 200
+    assert "Edit Profile" not in my_page.text
+    assert "edit-student-modal" not in my_page.text
+
+
+def test_contest_task_page_no_direct_link_and_green_solved_problem(client):
+    """Contest task page removes Direct Link column and highlights user solved problems in green."""
+    login_as_coach(client)
+    # Create coach and student
+    coach_res = client.post(
+        "/users/",
+        json={"username": "c_coach", "email": "cc@kotchy.dev", "password": "pass", "role": "coach"},
+    )
+    student_res = client.post(
+        "/users/",
+        json={"username": "c_solver", "email": "cs@kotchy.dev", "password": "pass", "role": "student"},
+    )
+    student_id = student_res.json()["id"]
+
+    # Create CF_CONTEST task
+    t_res = client.post(
+        "/tasks/",
+        json={
+            "title": "Educational CF Contest 100",
+            "task_type": "CF_CONTEST",
+            "config": {
+                "contest_id": 2000,
+                "min_solved": 2,
+                "problems": [
+                    {"index": "A", "name": "Array Sorting"},
+                    {"index": "B", "name": "Binary Search"},
+                ],
+            },
+        },
+    )
+    task_id = t_res.json()["id"]
+
+    # Assign task to student
+    a_res = client.post(
+        "/assignments/",
+        json={"student_id": student_id, "task_id": task_id},
+    )
+    assign_id = a_res.json()["id"]
+
+    with Session(test_engine) as session:
+        assignment = session.get(StudentTask, assign_id)
+        assignment.checker_result = {
+            "solved_count": 1,
+            "solved_problems": ["A"],
+            "per_problem": {
+                "A": {"solved": True, "attempts": 1},
+                "B": {"solved": False, "attempts": 2},
+            },
+        }
+        session.add(assignment)
+        session.commit()
+
+    # Login as student
+    client.post("/api/auth/login", json={"username_or_email": "c_solver", "password": "pass"})
+    page_res = client.get(f"/tasks-page/{task_id}")
+    assert page_res.status_code == 200
+    html = page_res.text
+
+    # 1. Direct Link column header and cells are removed
+    assert "<th class=\"py-2.5 px-4 text-right w-28\">Direct Link</th>" not in html
+    assert "Direct Link" not in html
+
+    # 2. Problem A is solved by user -> shows green styling and Solved badge
+    assert "border-l-emerald-500" in html
+    assert "bg-emerald-600 text-white" in html
+    assert "Array Sorting" in html
+    assert "Solved" in html
+
+    # 3. Standings tab problem A cell is green
+    assert "bg-emerald-100" in html
+
+
+# ── High Security & Access Restriction Tests ──────────────────
+def test_unauthenticated_api_access_blocked(client):
+    """Unauthenticated access to any administrative API endpoint must return 401 Unauthorized."""
+    endpoints = [
+        ("POST", "/tasks/", {"title": "Hack", "task_type": "CF_SHEET", "config": {}}),
+        ("GET", "/tasks/", None),
+        ("GET", "/tasks/1", None),
+        ("PUT", "/tasks/1", {"title": "Hack"}),
+        ("DELETE", "/tasks/1", None),
+        ("POST", "/students/", {"username": "hack", "email": "hack@kotchy.dev"}),
+        ("GET", "/students/", None),
+        ("GET", "/students/1", None),
+        ("PUT", "/students/1", {"username": "hack"}),
+        ("DELETE", "/students/1", None),
+        ("POST", "/users/", {"username": "hack", "email": "hack@kotchy.dev"}),
+        ("GET", "/users/", None),
+        ("GET", "/users/1", None),
+        ("PUT", "/users/1", {"username": "hack"}),
+        ("DELETE", "/users/1", None),
+        ("POST", "/assignments/", {"student_id": 1, "task_id": 1}),
+        ("GET", "/assignments/1", None),
+        ("GET", "/assignments/student/1", None),
+        ("POST", "/assignments/1/check", None),
+    ]
+
+    for method, url, json_data in endpoints:
+        if method == "POST":
+            res = client.post(url, json=json_data)
+        elif method == "GET":
+            res = client.get(url)
+        elif method == "PUT":
+            res = client.put(url, json=json_data)
+        elif method == "DELETE":
+            res = client.delete(url)
+        assert res.status_code == 401, f"{method} {url} returned {res.status_code}, expected 401"
+
+
+def test_student_cannot_access_coach_apis(client):
+    """A student account must not be able to edit, create, or delete any task, user, or assignment."""
+    login_as_coach(client)
+    # Create student
+    s_res = client.post("/users/", json={"username": "restricted_student", "email": "rs@kotchy.dev", "password": "pass", "role": "student"})
+    assert s_res.status_code == 201
+
+    # Login as student
+    login_res = client.post("/api/auth/login", json={"username_or_email": "restricted_student", "password": "pass"})
+    assert login_res.status_code == 200
+
+    coach_only_endpoints = [
+        ("POST", "/tasks/", {"title": "Hack Task", "task_type": "CF_SHEET", "config": {}}),
+        ("GET", "/tasks/", None),
+        ("GET", "/tasks/1", None),
+        ("PUT", "/tasks/1", {"title": "Modified"}),
+        ("DELETE", "/tasks/1", None),
+        ("POST", "/students/", {"username": "new_student", "email": "ns@kotchy.dev"}),
+        ("GET", "/students/", None),
+        ("GET", "/students/1", None),
+        ("PUT", "/students/1", {"username": "hacked"}),
+        ("DELETE", "/students/1", None),
+        ("POST", "/users/", {"username": "new_user", "email": "nu@kotchy.dev"}),
+        ("GET", "/users/", None),
+        ("GET", "/users/1", None),
+        ("PUT", "/users/1", {"username": "hacked"}),
+        ("DELETE", "/users/1", None),
+        ("POST", "/assignments/", {"student_id": 1, "task_id": 1}),
+        ("GET", "/tasks-page", None),
+    ]
+
+    for method, url, json_data in coach_only_endpoints:
+        if method == "POST":
+            res = client.post(url, json=json_data)
+        elif method == "GET":
+            res = client.get(url)
+        elif method == "PUT":
+            res = client.put(url, json=json_data)
+        elif method == "DELETE":
+            res = client.delete(url)
+        assert res.status_code == 403, f"{method} {url} returned {res.status_code}, expected 403"
+
+
+def test_student_assignment_isolation_and_check(client):
+    """Students can only view and check their own assigned tasks, not other students' tasks."""
+    login_as_coach(client)
+
+    # 1. Create two students
+    s1_res = client.post("/users/", json={"username": "alice", "email": "alice@kotchy.dev", "password": "pass", "role": "student"})
+    s2_res = client.post("/users/", json={"username": "bob_secure", "email": "bob_sec@kotchy.dev", "password": "pass", "role": "student"})
+    alice_id = s1_res.json()["id"]
+    bob_id = s2_res.json()["id"]
+
+    # 2. Create two tasks
+    t1_res = client.post("/tasks/", json={"title": "Alice Task", "task_type": "CF_SHEET", "config": {"problems": ["4A"]}})
+    t2_res = client.post("/tasks/", json={"title": "Bob Task", "task_type": "CF_SHEET", "config": {"problems": ["71A"]}})
+    t1_id = t1_res.json()["id"]
+    t2_id = t2_res.json()["id"]
+
+    # 3. Assign Task 1 to Alice, Task 2 to Bob
+    a1_res = client.post("/assignments/", json={"student_id": alice_id, "task_id": t1_id})
+    a2_res = client.post("/assignments/", json={"student_id": bob_id, "task_id": t2_id})
+    alice_assign_id = a1_res.json()["id"]
+    bob_assign_id = a2_res.json()["id"]
+
+    # 4. Login as Alice
+    client.post("/api/auth/login", json={"username_or_email": "alice", "password": "pass"})
+
+    # Alice CANNOT view Bob's task detail page
+    bob_page_res = client.get(f"/tasks-page/{t2_id}")
+    assert bob_page_res.status_code == 403
+
+    # Alice CANNOT view Bob's assignment API
+    bob_assign_res = client.get(f"/assignments/{bob_assign_id}")
+    assert bob_assign_res.status_code == 403
+
+    # Alice CANNOT view Bob's assignments list API
+    bob_list_res = client.get(f"/assignments/student/{bob_id}")
+    assert bob_list_res.status_code == 403
+
+    # Alice CANNOT check Bob's assignment
+    bob_check_res = client.post(f"/assignments/{bob_assign_id}/check")
+    assert bob_check_res.status_code == 403
+
+    # Alice CAN view her own assigned task page
+    alice_page_res = client.get(f"/tasks-page/{t1_id}")
+    assert alice_page_res.status_code == 200
+    assert "Alice Task" in alice_page_res.text
+    # Delete button is not present for Alice
+    assert "Delete" not in alice_page_res.text
+
+    # Alice CAN view her own assignment details API
+    alice_get_assign = client.get(f"/assignments/{alice_assign_id}")
+    assert alice_get_assign.status_code == 200
+
+    # Alice CAN view her own assignments list API
+    alice_get_list = client.get(f"/assignments/student/{alice_id}")
+    assert alice_get_list.status_code == 200
+
+    # Alice CAN run check on her own assignment
+    mock_checker = MagicMock()
+    mock_checker.check.return_value = {
+        "status": "completed",
+        "after_deadline": False,
+        "details": {"solved": ["4A"], "solved_count": 1, "missing_problems": []},
+    }
+    with patch("app.api.assignments.TaskFactory.create", return_value=mock_checker):
+        alice_check_res = client.post(f"/assignments/{alice_assign_id}/check")
+        assert alice_check_res.status_code == 200
+        assert alice_check_res.json()["status"] == "completed"
+
+
+
+
