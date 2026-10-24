@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 TASK_TYPE_TEMPLATE_MAP: Dict[str, str] = {
     "CF_SHEET": "tasks/types/cf_sheet.html",
     "CF_CONTEST": "tasks/types/cf_contest.html",
+    "CSES_SHEET": "tasks/types/cses_sheet.html",
 }
 
 DEFAULT_TASK_TEMPLATE = "tasks/types/default.html"
@@ -85,9 +86,9 @@ def get_task_sidebar_data(
     in_progress_assignments = []
     completed_assignments = []
 
-    if task.task_type == "CF_SHEET":
+    if task.task_type in ("CF_SHEET", "CSES_SHEET"):
         required_count = task.config.get(
-            "min_solved_count", len(task.config.get("problems", []))
+            "min_solved_count", task.config.get("min_solved", len(task.config.get("problems", [])))
         )
     else:
         required_count = task.config.get("min_solved", 0)

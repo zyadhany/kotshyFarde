@@ -43,6 +43,10 @@ class Settings:
     CF_API_KEY: str = os.getenv("CF_API_KEY", "")
     CF_API_SECRET: str = os.getenv("CF_API_SECRET", "")
 
+    # ── CSES Authentication ───────────────────────────────────
+    CSES_USERNAME: str = os.getenv("CSES_USERNAME", "")
+    CSES_PASSWORD: str = os.getenv("CSES_PASSWORD", "")
+
     # ── Task defaults ─────────────────────────────────────────
     DEFAULT_TASK_DEADLINE: datetime = _parse_deadline(os.getenv("DEFAULT_TASK_DEADLINE"))
 
@@ -63,6 +67,12 @@ class Settings:
     CF_CONTEST_PROBLEMS_CACHE_LIFETIME: int | None = (
         int(os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME"))
         if os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME") and os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME").strip().isdigit()
+        else None
+    )
+    CSES_SOLVED_CACHE_LIFETIME: int = int(os.getenv("CSES_SOLVED_CACHE_LIFETIME", "60"))
+    CSES_PROBLEM_NAMES_CACHE_LIFETIME: int | None = (
+        int(os.getenv("CSES_PROBLEM_NAMES_CACHE_LIFETIME"))
+        if os.getenv("CSES_PROBLEM_NAMES_CACHE_LIFETIME") and os.getenv("CSES_PROBLEM_NAMES_CACHE_LIFETIME").strip().isdigit()
         else None
     )
 

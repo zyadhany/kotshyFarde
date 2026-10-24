@@ -215,8 +215,8 @@ def student_detail_page(
         solved_count = res.get("solved_count", 0)
 
         # Required count
-        if task.task_type == "CF_SHEET":
-            required_count = task.config.get("min_solved_count", len(task.config.get("problems", [])))
+        if task.task_type in ("CF_SHEET", "CSES_SHEET"):
+            required_count = task.config.get("min_solved_count", task.config.get("min_solved", len(task.config.get("problems", []))))
         else:
             required_count = task.config.get("min_solved", 0)
             if required_count == 0:
@@ -331,16 +331,15 @@ def tasks_index_page(
     assignments = list(session.exec(select(StudentTask)).all())
 
     task_items = []
-    sheet_count = 0
-    contest_count = 0
+    sheet_count = sum(1 for t in tasks if t.task_type == "CF_SHEET")
+    contest_count = sum(1 for t in tasks if t.task_type == "CF_CONTEST")
+    cses_sheet_count = sum(1 for t in tasks if t.task_type == "CSES_SHEET")
 
     for t in tasks:
-        if t.task_type == "CF_SHEET":
-            sheet_count += 1
+        if t.task_type in ("CF_SHEET", "CSES_SHEET"):
             problem_count = len(t.config.get("problems", []))
-            min_solved = t.config.get("min_solved_count", problem_count)
+            min_solved = t.config.get("min_solved_count", t.config.get("min_solved", problem_count))
         else:
-            contest_count += 1
             problem_count = 1
             raw_min = t.config.get("min_solved", 1)
             min_solved = "All" if raw_min == 0 else raw_min
@@ -362,6 +361,7 @@ def tasks_index_page(
         "task_items": task_items,
         "sheet_count": sheet_count,
         "contest_count": contest_count,
+        "cses_sheet_count": cses_sheet_count,
     }
 
     return templates.TemplateResponse(request=request, name="tasks/index.html", context=context)
@@ -539,9 +539,9 @@ def assignments_index_page(
         res = a.checker_result or {}
         solved_count = res.get("solved_count", 0)
 
-        if task.task_type == "CF_SHEET":
+        if task.task_type in ("CF_SHEET", "CSES_SHEET"):
             problem_count = len(task.config.get("problems", []))
-            required_count = task.config.get("min_solved_count", problem_count)
+            required_count = task.config.get("min_solved_count", task.config.get("min_solved", problem_count))
         else:
             required_count = task.config.get("min_solved", 1)
             problem_count = 1

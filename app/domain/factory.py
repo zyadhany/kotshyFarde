@@ -12,11 +12,13 @@ from typing import Any, Dict, Type
 from app.domain.base_task import BaseTask
 from app.domain.codeforces.contest import CodeforcesContestTask
 from app.domain.codeforces.sheet import CodeforcesSheetTask
+from app.domain.cses.sheet import CSESSheetTask
 
 # ── Registry ──────────────────────────────────────────────────
 _REGISTRY: Dict[str, Type[BaseTask]] = {
     "CF_SHEET": CodeforcesSheetTask,
     "CF_CONTEST": CodeforcesContestTask,
+    "CSES_SHEET": CSESSheetTask,
     # Future: "VJUDGE_CONTEST": ..., "MANUAL": ...
 }
 

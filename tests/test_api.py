@@ -554,15 +554,15 @@ def test_frontend_pages(client):
     custom_res = client.post(
         "/api/tasks/",
         json={
-            "title": "CSES Sheet",
-            "task_type": "CSES_SHEET",
+            "title": "Custom Task",
+            "task_type": "CUSTOM_TASK",
             "config": {"sheet_name": "Introductory Problems"},
         },
     )
     custom_id = custom_res.json()["id"]
     res_custom_detail = client.get(f"/tasks/{custom_id}")
     assert res_custom_detail.status_code == 200
-    assert "CSES Sheet" in res_custom_detail.text
+    assert "Custom Task" in res_custom_detail.text
     assert "Task Configuration" in res_custom_detail.text
     assert client.get(f"/tasks-page/{custom_id}").status_code == 200
 

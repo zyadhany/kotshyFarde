@@ -73,8 +73,9 @@ const Kotchy = {
       const payload = {
         username: form.username.value.trim(),
         email: form.email.value.trim(),
-        cf_handle: form.cf_handle.value.trim() || null,
-        vjudge_handle: form.vjudge_handle.value.trim() || null,
+        cf_handle: form.cf_handle ? form.cf_handle.value.trim() || null : null,
+        vjudge_handle: form.vjudge_handle ? form.vjudge_handle.value.trim() || null : null,
+        cses_id: form.cses_id ? form.cses_id.value.trim() || null : null,
       };
 
       if (form.password && form.password.value.trim()) {
@@ -226,7 +227,7 @@ const Kotchy = {
     toggleTypeFields(type, formPrefix = '') {
       const sheetBox = document.getElementById(`${formPrefix}sheet-fields`);
       const contestBox = document.getElementById(`${formPrefix}contest-fields`);
-      if (type === 'CF_SHEET') {
+      if (type === 'CF_SHEET' || type === 'CSES_SHEET') {
         if (sheetBox) sheetBox.classList.remove('hidden');
         if (contestBox) contestBox.classList.add('hidden');
       } else {
@@ -244,7 +245,7 @@ const Kotchy = {
       const taskType = form.task_type.value;
       let config = {};
 
-      if (taskType === 'CF_SHEET') {
+      if (taskType === 'CF_SHEET' || taskType === 'CSES_SHEET') {
         const raw = form.problems.value.trim();
         const problems = raw
           .split(/[\s,;\n]+/)
@@ -252,12 +253,12 @@ const Kotchy = {
           .filter(p => p.length > 0);
 
         if (problems.length === 0) {
-          Kotchy.showToast('Please provide at least one problem code.', 'warning');
+          Kotchy.showToast(taskType === 'CSES_SHEET' ? 'Please provide at least one CSES problem ID (e.g. 1068, 1083).' : 'Please provide at least one problem code.', 'warning');
           return;
         }
 
         const minSolved = parseInt(form.min_solved_count.value) || problems.length;
-        config = { problems, min_solved_count: minSolved };
+        config = { problems, min_solved_count: minSolved, min_solved: minSolved };
       } else {
         const contestId = parseInt(form.contest_id.value);
         if (isNaN(contestId)) {
@@ -344,15 +345,16 @@ const Kotchy = {
         const parsedMin = parseInt(form.min_solved.value, 10);
         config.min_solved = isNaN(parsedMin) ? 1 : Math.max(0, parsedMin);
         config.access_type = form.access_type?.value || 'public';
-      } else if (taskType === 'CF_SHEET') {
+      } else if (taskType === 'CF_SHEET' || taskType === 'CSES_SHEET') {
         const rawProblems = form.problems?.value.trim() || '';
         const problems = rawProblems.split(/[\s,;\n]+/).filter(p => p.length > 0);
         if (problems.length === 0) {
-          Kotchy.showToast('Please provide at least one problem identifier (e.g. 455A).', 'error');
+          Kotchy.showToast(taskType === 'CSES_SHEET' ? 'Please provide at least one CSES problem ID.' : 'Please provide at least one problem identifier (e.g. 455A).', 'error');
           return;
         }
         config.problems = problems;
         config.min_solved_count = parseInt(form.min_solved_count?.value, 10) || problems.length;
+        config.min_solved = config.min_solved_count;
       }
 
       const payload = {

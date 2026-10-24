@@ -57,6 +57,12 @@
                         VJ: {{ student.vjudge_handle }}
                     </span>
                     {% endif %}
+                    {% if student.cses_id %}
+                    <a href="https://cses.fi/user/{{ student.cses_id }}" target="_blank"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors">
+                        CSES: {{ student.cses_id }} ↗
+                    </a>
+                    {% endif %}
                 </div>
 
                 <!-- Codeforces-style Contest Rating & Max line -->

@@ -293,17 +293,21 @@ def test_contest_task_page_hide_solved_problems_checkbox_rendered():
             coach = User(
                 username="coach",
                 email="coach@example.com",
-                hashed_password=get_password_hash("12345678"),
+                hashed_password=get_password_hash("adminpassword"),
                 role="coach",
                 is_active=True,
             )
+            session.add(coach)
+            session.commit()
+        else:
+            coach.hashed_password = get_password_hash("adminpassword")
             session.add(coach)
             session.commit()
 
     client = TestClient(app)
 
     # Login as coach
-    login_res = client.post("/api/auth/login", json={"username_or_email": "coach", "password": "12345678"})
+    login_res = client.post("/api/auth/login", json={"username_or_email": "coach", "password": "adminpassword"})
     assert login_res.status_code == 200
 
     uniq = str(uuid.uuid4())[:8]
