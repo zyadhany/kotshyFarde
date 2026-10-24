@@ -425,6 +425,7 @@ def standardize_verdict(verdict: str) -> str:
 def clear_user_submissions_cache() -> None:
     """Clear the in-memory user submissions cache."""
     cache["user_submissions"].clear()
+    cache["contest_submissions"].clear()
 
 
 def get_user_submissions(
@@ -553,13 +554,67 @@ def get_contest_submissions(
     handle: str,
     contest_id: int,
     use_auth: bool = False,
+    use_cache: bool = True,
 ) -> List[Dict[str, Any]]:
-    """Return the raw list of submissions for *handle* in a specific contest."""
-    submissions = get_user_submissions(handle, use_auth=use_auth)
-    return [
+    """Return the raw list of submissions for *handle* in a specific contest.
+
+    For private/managed contests (use_auth=True), queries Codeforces' ``contest.status``
+    endpoint directly, as ``user.status`` does not expose private/group contest submissions.
+    Falls back to ``contest.status`` for public contests if ``user.status`` does not contain
+    any submissions for this contest.
+    """
+    cache_key = (contest_id, handle.strip().lower(), use_auth)
+    if use_cache:
+        cached = cache["contest_submissions"].get(cache_key)
+        if cached is not None:
+            return cached
+
+    if use_auth:
+        try:
+            status_resp = _request(
+                "contest.status",
+                {"contestId": str(contest_id), "handle": handle},
+                use_auth=True,
+            )
+            result = status_resp if isinstance(status_resp, list) else []
+            if use_cache:
+                cache["contest_submissions"].add(
+                    cache_key, result, lifetime=settings.CF_SUBMISSIONS_CACHE_LIFETIME
+                )
+            return result
+        except Exception as exc:
+            logger.warning(
+                "Failed to fetch contest submissions from contest.status for %s in contest %s: %s",
+                handle, contest_id, exc,
+            )
+
+    submissions = get_user_submissions(handle, use_auth=use_auth, use_cache=use_cache)
+    matched = [
         s for s in submissions
         if s.get("problem", {}).get("contestId") == contest_id
     ]
+    if not matched and not use_auth:
+        try:
+            status_resp = _request(
+                "contest.status",
+                {"contestId": str(contest_id), "handle": handle},
+                use_auth=False,
+            )
+            if isinstance(status_resp, list) and status_resp:
+                matched = status_resp
+        except Exception:
+            pass
+
+    if use_cache:
+        cache["contest_submissions"].add(
+            cache_key, matched, lifetime=settings.CF_SUBMISSIONS_CACHE_LIFETIME
+        )
+    return matched
+
+
+def clear_contest_submissions_cache() -> None:
+    """Clear the in-memory contest submissions cache."""
+    cache["contest_submissions"].clear()
 
 
 def clear_contest_problems_cache() -> None:
@@ -610,6 +665,7 @@ def get_contest_problems_status(
     contest_id: int,
     use_auth: bool = False,
     deadline: Optional[datetime] = None,
+    use_cache: bool = True,
 ) -> Dict[str, Any]:
     """Return a structured summary of problems solved by *handle* in a contest.
 
@@ -625,7 +681,7 @@ def get_contest_problems_status(
             "per_problem": {"A": {"solved": bool, "attempts": int, "after_deadline": bool, "solved_at": str | None}, ...}
         }
     """
-    contest_subs = get_contest_submissions(handle, contest_id, use_auth=use_auth)
+    contest_subs = get_contest_submissions(handle, contest_id, use_auth=use_auth, use_cache=use_cache)
 
     d = None
     if deadline is not None:

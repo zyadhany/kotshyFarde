@@ -12,9 +12,9 @@
             <p class="text-xs text-zinc-500">Problem sheets, contest assignments, and passing criteria</p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5 flex-wrap w-full sm:w-auto justify-between sm:justify-start">
             <!-- Filter Tabs -->
-            <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
+            <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 overflow-x-auto max-w-full">
                 <button type="button" 
                         data-filter="all"
                         onclick="Kotchy.filterItems('all', '.task-archive-row', 'data-type')"
@@ -46,63 +46,137 @@
         </div>
     </div>
 
+    <!-- ── Stats Overview ───────────────────────────────────────── -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <!-- Total Tasks -->
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-xs flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider block">Total Tasks</span>
+                <span class="text-2xl font-bold text-zinc-900 font-mono mt-1 block">{{ tasks|length }}</span>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-zinc-600">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Problem Sheets -->
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-xs flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-semibold text-sky-700 uppercase tracking-wider block">Problem Sheets</span>
+                <span class="text-2xl font-bold text-zinc-900 font-mono mt-1 block">{{ sheet_count }}</span>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-sky-50 border border-sky-100 flex items-center justify-center text-sky-600">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Contests -->
+        <div class="bg-white border border-zinc-200/80 rounded-xl p-4 shadow-xs flex items-center justify-between">
+            <div>
+                <span class="text-[11px] font-semibold text-purple-700 uppercase tracking-wider block">Contests</span>
+                <span class="text-2xl font-bold text-zinc-900 font-mono mt-1 block">{{ contest_count }}</span>
+            </div>
+            <div class="w-10 h-10 rounded-lg bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Tasks Table ─────────────────────────────────────────── -->
-    <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
+    <div class="bg-white border border-zinc-200/80 rounded-xl shadow-xs overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
+            <table class="w-full min-w-[640px] text-left text-xs border-collapse">
                 <thead>
-                    <tr class="border-b border-zinc-200 bg-zinc-50/60 text-zinc-500 font-medium">
-                        <th class="py-2.5 px-4 font-mono w-16">ID</th>
-                        <th class="py-2.5 px-4">Title</th>
-                        <th class="py-2.5 px-4 font-mono">Task Type</th>
-                        <th class="py-2.5 px-4 font-mono">Problem Count</th>
-                        <th class="py-2.5 px-4 font-mono">Assigned Students</th>
-                        <th class="py-2.5 px-4 font-mono">Created At</th>
-                        <th class="py-2.5 px-4 text-right">Actions</th>
+                    <tr class="border-b border-zinc-200 bg-zinc-50/80 text-zinc-500 font-medium tracking-wide">
+                        <th class="py-3 px-4 font-mono w-16">ID</th>
+                        <th class="py-3 px-4">Title & Details</th>
+                        <th class="py-3 px-4 font-mono">Task Type</th>
+                        <th class="py-3 px-4 font-mono">Problems & Target</th>
+                        <th class="py-3 px-4 font-mono">Enrolled</th>
+                        <th class="py-3 px-4 font-mono">Created</th>
+                        <th class="py-3 px-4 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 text-zinc-700">
                     {% for item in task_items %}
                         {% set t = item.task %}
-                        <tr class="task-archive-row hover:bg-zinc-50/60 transition-colors" data-type="{{ t.task_type }}">
-                            <td class="py-2.5 px-4 font-mono text-zinc-400">#{{ t.id }}</td>
-                            <td class="py-2.5 px-4 font-semibold text-zinc-900">
-                                <a href="/tasks/{{ t.id }}" class="hover:underline">
+                        <tr class="task-archive-row hover:bg-zinc-50/80 transition-colors" data-type="{{ t.task_type }}">
+                            <td class="py-3 px-4 font-mono text-zinc-400">#{{ t.id }}</td>
+                            <td class="py-3 px-4">
+                                <a href="/tasks/{{ t.id }}" class="font-bold text-zinc-900 hover:text-sky-700 hover:underline block text-xs">
                                     {{ t.title }}
                                 </a>
                                 {% if t.description %}
-                                    <span class="block text-[11px] text-zinc-500 font-normal truncate max-w-sm">{{ t.description }}</span>
+                                    <span class="block text-[11px] text-zinc-500 font-normal truncate max-w-sm mt-0.5">{{ t.description }}</span>
                                 {% endif %}
                             </td>
-                            <td class="py-2.5 px-4 font-mono">
+                            <td class="py-3 px-4 font-mono">
+                                {% if t.task_type == 'CF_SHEET' %}
+                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-sky-50 text-sky-700 border-sky-200">
+                                    <svg class="w-3 h-3 text-sky-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    <span>Sheet</span>
+                                </span>
+                                {% elif t.task_type == 'CF_CONTEST' %}
+                                <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-mono font-medium border bg-purple-50 text-purple-700 border-purple-200">
+                                    <svg class="w-3 h-3 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                                    </svg>
+                                    <span>Contest</span>
+                                </span>
+                                {% else %}
                                 <span class="px-1.5 py-0.5 rounded border text-[11px] font-medium bg-zinc-100 text-zinc-700 border-zinc-300">
                                     {{ t.task_type }}
                                 </span>
-                            </td>
-                            <td class="py-2.5 px-4 font-mono text-zinc-600">
-                                {% if t.task_type == 'CF_SHEET' %}
-                                    {{ item.problem_count }} problems (min: {{ item.min_solved }})
-                                {% else %}
-                                    Contest #{{ t.config.get('contest_id', '—') }} (min: {{ item.min_solved }})
                                 {% endif %}
                             </td>
-                            <td class="py-2.5 px-4 font-mono text-zinc-600">
-                                {{ item.assigned_count }} students
+                            <td class="py-3 px-4 font-mono text-zinc-600">
+                                {% if t.task_type == 'CF_SHEET' %}
+                                    <span class="inline-flex items-center gap-1 text-[11px] text-zinc-700">
+                                        <strong>{{ item.problem_count }}</strong> problems
+                                        <span class="text-zinc-500 font-normal">(min: {{ item.min_solved }})</span>
+                                    </span>
+                                {% else %}
+                                    <span class="inline-flex items-center gap-1 text-[11px] text-zinc-700">
+                                        Contest #<strong>{{ t.config.get('contest_id', '—') }}</strong>
+                                        <span class="text-zinc-500 font-normal">(min: {{ item.min_solved }})</span>
+                                    </span>
+                                {% endif %}
                             </td>
-                            <td class="py-2.5 px-4 font-mono text-zinc-500">
+                            <td class="py-3 px-4 font-mono text-zinc-600">
+                                <span class="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
+                                    <svg class="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                    <span>{{ item.assigned_count }} students</span>
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 font-mono text-zinc-500 text-[11px]">
                                 {{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '—' }}
                             </td>
-                            <td class="py-2.5 px-4 text-right">
-                                <div class="flex items-center justify-end gap-2">
+                            <td class="py-3 px-4 text-right">
+                                <div class="flex items-center justify-end gap-1.5">
                                     <a href="/tasks/{{ t.id }}" 
-                                       class="px-2 py-1 text-[11px] font-medium rounded bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors">
-                                        Details
+                                       class="px-2.5 py-1 text-[11px] font-medium rounded-md border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 shadow-2xs transition-colors inline-flex items-center gap-1">
+                                        <span>Details</span>
+                                        <span>→</span>
                                     </a>
                                     {% if current_user and current_user.is_coach() %}
                                     <button type="button" 
-                                            onclick="Kotchy.Task.delete({{ t.id }}, '{{ t.title }}')"
-                                            class="px-2 py-1 text-[11px] font-medium rounded text-rose-600 hover:bg-rose-50 transition-colors">
-                                        Delete
+                                            data-task-id="{{ t.id }}"
+                                            data-task-title="{{ t.title }}"
+                                            onclick="Kotchy.Task.delete(this.dataset.taskId, this.dataset.taskTitle)"
+                                            class="p-1 text-[11px] font-medium rounded-md text-zinc-400 hover:text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center justify-center">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -110,8 +184,13 @@
                         </tr>
                     {% else %}
                         <tr>
-                            <td colspan="7" class="py-8 text-center text-zinc-400 text-xs">
-                                No tasks found. Click "+ Create Task" to add problem sets.
+                            <td colspan="7" class="py-12 text-center text-zinc-400 text-xs">
+                                <div class="flex flex-col items-center justify-center gap-2">
+                                    <svg class="w-8 h-8 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    <span>No tasks found. Click "+ Create Task" to add problem sets.</span>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}

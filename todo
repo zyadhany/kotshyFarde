@@ -1,22 +1,19 @@
-- [DONE] for username let it shows as it's rate in codeforces (pubil:gree, expert:blue). same way in codeforces style
-    - also in student profile shows it's current rate and its max rate (of all time) 
-
-
 
 For futer nevert look at it now at all
 
-- make profile image taken from codeforces account
+- at contest page dont shows, ID of the task
+
+- let username cant be changed
+- cses problems task
+- Codeforces Privte contest check
+- vjudge sheet task
 
 - fix mobile or deffernet defvices view
 
+- for contest show rate of problems if could find it
+- at conest page make direct link to codeforces standing with kotch fardy List
 - add buttom for announce problem to users
 
-- for contest show rate of problems if could find it
-
-- at contest check return List for attemped problems which got unsuccesfull submution and then color it yellow for the user 
-
-- work more in user profile
-    - rating
 
 - make score system
     - each task has specific score
@@ -39,25 +36,15 @@ For futer nevert look at it now at all
     - chess game that each round has time like 30sec
     - when go eat anothe pone they give you problem to solve, the one who solve problem first eat the other
 
-- name colors (shows as codeforces)
-
-- rating view for user
 
 - make new task type of get to new rank
 
 - Make an achivment page
 
-- contest
-    - if provide 0 min solve (he has to solve the whole contest)
 
-- at conest page make direct link to codeforces standing with kotch fardy List
+- add codeforces handle check
 
-Login page
--   auntactors
--   Hash password
+- make email check and autentcation
 
-- cses problems task
-- vjudge sheet task
-- Codeforces Privte contest check
 - manual todo task (topics, videos, descreption) (just like todo list ill task and for them to pass just check box)
     - can improve it by check box for every complated link

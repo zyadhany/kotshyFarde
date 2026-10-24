@@ -8,6 +8,7 @@ Handles cookie lifecycle and role-based redirects.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -16,12 +17,12 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlmodel import Session, select
 
-from app.api.deps import get_optional_current_user
+from app.api.deps import get_current_user, get_optional_current_user
 from app.core.config import settings
 from app.core.database import get_session
-from app.core.security import create_access_token, verify_password
+from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.user import User
-from app.schemas.user import LoginRequest, LoginResponse
+from app.schemas.user import LoginRequest, LoginResponse, UserRead, UserUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -167,3 +168,54 @@ def logout(response: Response) -> Response:
     redirect = RedirectResponse(url="/login", status_code=status.HTTP_303_SEE_OTHER)
     redirect.delete_cookie(key="access_token", path="/")
     return redirect
+
+
+# ── PUT /api/auth/profile: Update authenticated user's own profile
+@router.put("/api/auth/profile", response_model=UserRead)
+def update_profile(
+    user_in: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+) -> User:
+    """Allow an authenticated student or coach to update their own profile information."""
+    update_data = user_in.model_dump(exclude_unset=True)
+
+    # Security: Non-coaches CANNOT escalate role or toggle active status
+    if not current_user.is_coach():
+        update_data.pop("role", None)
+        update_data.pop("is_active", None)
+
+    # Check uniqueness if username or email is being changed
+    new_username = update_data.get("username")
+    new_email = update_data.get("email")
+    if new_username or new_email:
+        query = select(User).where(User.id != current_user.id)
+        if new_username and new_email:
+            query = query.where((User.username == new_username) | (User.email == new_email))
+        elif new_username:
+            query = query.where(User.username == new_username)
+        elif new_email:
+            query = query.where(User.email == new_email)
+
+        conflict = session.exec(query).first()
+        if conflict:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Another user with this username or email already exists.",
+            )
+
+    # Handle password change
+    if "password" in update_data:
+        pwd = update_data.pop("password")
+        if pwd:
+            current_user.hashed_password = get_password_hash(str(pwd))
+
+    for field, value in update_data.items():
+        setattr(current_user, field, value)
+
+    current_user.updated_at = datetime.now(timezone.utc)
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
+    return current_user
+

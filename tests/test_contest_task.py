@@ -339,6 +339,34 @@ def test_contest_task_page_hide_solved_problems_checkbox_rendered():
         assert 'data-solved=' in page.text
 
 
+def test_get_contest_submissions_private_uses_contest_status():
+    """Verify that private_managed / use_auth=True queries contest.status directly."""
+    from app.services.codeforces_api import get_contest_submissions, clear_contest_submissions_cache
+
+    clear_contest_submissions_cache()
+    mock_status = [
+        {"id": 101, "verdict": "OK", "problem": {"contestId": 716115, "index": "A"}},
+        {"id": 102, "verdict": "WRONG_ANSWER", "problem": {"contestId": 716115, "index": "B"}},
+    ]
+
+    with patch("app.services.codeforces_api._request", return_value=mock_status) as mock_req:
+        subs = get_contest_submissions("Omar_AbdEl3al", 716115, use_auth=True)
+        assert len(subs) == 2
+        mock_req.assert_called_once_with(
+            "contest.status",
+            {"contestId": "716115", "handle": "Omar_AbdEl3al"},
+            use_auth=True,
+        )
+
+        # Test caching: second call shouldn't call _request again
+        subs2 = get_contest_submissions("Omar_AbdEl3al", 716115, use_auth=True)
+        assert subs2 == subs
+        assert mock_req.call_count == 1
+
+    clear_contest_submissions_cache()
+
+
+
 
 
 

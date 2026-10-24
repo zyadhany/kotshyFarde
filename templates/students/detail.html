@@ -17,121 +17,143 @@
 
     <!-- ── Student Profile Header ──────────────────────────────── -->
     <div class="bg-white border border-zinc-200 rounded-lg p-5">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <!-- Initials Avatar -->
-                <div class="w-12 h-12 rounded-full bg-zinc-100 border-2 flex items-center justify-center font-mono font-bold text-base flex-shrink-0 cf-avatar {{ student.cf_rating_class }}">
-                    {{ student.username[:2]|upper }}
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-6">
+            <!-- Left: All Student Information -->
+            <div class="flex-1 min-w-0">
+                <!-- Codeforces Rank Title if rated -->
+                {% if student.cf_handle and student.cf_rating is not none %}
+                <div class="text-xs font-bold uppercase tracking-wider mb-0.5 {{ student.cf_rating_class }}">
+                    {{ student.cf_rank }}
                 </div>
+                {% elif student.cf_handle %}
+                <div class="text-xs font-semibold text-slate-400 mb-0.5">
+                    Unrated
+                </div>
+                {% endif %}
 
-                <div>
-                    <!-- Codeforces Rank Title if rated -->
-                    {% if student.cf_handle and student.cf_rating is not none %}
-                    <div class="text-xs font-bold uppercase tracking-wider mb-0.5 {{ student.cf_rating_class }}">
-                        {{ student.cf_rank }}
-                    </div>
-                    {% elif student.cf_handle %}
-                    <div class="text-xs font-semibold text-slate-400 mb-0.5">
-                        Unrated
-                    </div>
-                    {% endif %}
-
-                    <!-- Username & Platform Badges -->
-                    <div class="flex items-center gap-2.5 flex-wrap">
-                        <h1 class="text-xl sm:text-2xl font-bold tracking-tight inline-block {{ student.cf_rating_class }}">
+                <!-- Username & Platform Badges -->
+                <div class="flex items-center gap-2.5 flex-wrap">
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight inline-block {{ student.cf_rating_class }}">
+                        {% if student.is_legendary %}
+                            <span class="legendary-first-letter">{{ student.username[:1] }}</span>{{ student.username[1:] }}
+                        {% else %}
+                            {{ student.username }}
+                        {% endif %}
+                    </h1>
+                    {% if student.cf_handle %}
+                    <a href="https://codeforces.com/profile/{{ student.cf_handle }}" target="_blank"
+                        class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors">
+                        CF: <span class="font-bold {{ student.cf_rating_class }}">
                             {% if student.is_legendary %}
-                                <span class="legendary-first-letter">{{ student.username[:1] }}</span>{{ student.username[1:] }}
+                                <span class="legendary-first-letter">{{ student.cf_handle[:1] }}</span>{{ student.cf_handle[1:] }}
                             {% else %}
-                                {{ student.username }}
+                                {{ student.cf_handle }}
                             {% endif %}
-                        </h1>
-                        {% if student.cf_handle %}
-                        <a href="https://codeforces.com/profile/{{ student.cf_handle }}" target="_blank"
-                            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors">
-                            CF: <span class="font-bold {{ student.cf_rating_class }}">
-                                {% if student.is_legendary %}
-                                    <span class="legendary-first-letter">{{ student.cf_handle[:1] }}</span>{{ student.cf_handle[1:] }}
-                                {% else %}
-                                    {{ student.cf_handle }}
-                                {% endif %}
-                            </span> ↗
-                        </a>
-                        {% endif %}
-                        {% if student.vjudge_handle %}
-                        <span class="px-2 py-0.5 rounded text-xs font-mono text-zinc-600 bg-zinc-50 border border-zinc-200">
-                            VJ: {{ student.vjudge_handle }}
-                        </span>
-                        {% endif %}
-                    </div>
-
-                    <!-- Codeforces-style Contest Rating & Max line -->
-                    {% if student.cf_handle and student.cf_rating is not none %}
-                    <div class="mt-1 flex items-center gap-2 flex-wrap text-xs font-mono">
-                        <span class="text-slate-600">
-                            Contest Rating: <span class="font-bold text-[13px] {{ student.cf_rating_class }}">{{ student.cf_rating }}</span>
-                            {% if student.cf_max_rating is not none %}
-                            <span class="text-slate-500 text-[11px]">
-                                (Max: <span class="font-bold {{ student.cf_max_rating_class }}">{{ student.cf_max_rank }}</span>, <span class="font-bold {{ student.cf_max_rating_class }}">{{ student.cf_max_rating }}</span>)
-                            </span>
-                            {% endif %}
-                        </span>
-                    </div>
-                    {% elif student.cf_handle %}
-                    <div class="mt-1 flex items-center gap-2 text-xs font-mono text-slate-400">
-                        <span>Unrated</span>
-                    </div>
+                        </span> ↗
+                    </a>
                     {% endif %}
+                    {% if student.vjudge_handle %}
+                    <span class="px-2 py-0.5 rounded text-xs font-mono text-zinc-600 bg-zinc-50 border border-zinc-200">
+                        VJ: {{ student.vjudge_handle }}
+                    </span>
+                    {% endif %}
+                </div>
 
-                    <div class="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 flex-wrap">
-                        <span>{{ student.email }}</span>
-                        <span>•</span>
-                        <span class="font-mono">Joined {{ student.created_at.strftime('%b %d, %Y') if student.created_at
-                            else '—' }}</span>
+                <!-- Codeforces-style Contest Rating & Max line -->
+                {% if student.cf_handle and student.cf_rating is not none %}
+                <div class="mt-1 flex items-center gap-2 flex-wrap text-xs font-mono">
+                    <span class="text-slate-600">
+                        Contest Rating: <span class="font-bold text-[13px] {{ student.cf_rating_class }}">{{ student.cf_rating }}</span>
+                        {% if student.cf_max_rating is not none %}
+                        <span class="text-slate-500 text-[11px]">
+                            (Max: <span class="font-bold {{ student.cf_max_rating_class }}">{{ student.cf_max_rank }}</span>, <span class="font-bold {{ student.cf_max_rating_class }}">{{ student.cf_max_rating }}</span>)
+                        </span>
+                        {% endif %}
+                    </span>
+                </div>
+                {% elif student.cf_handle %}
+                <div class="mt-1 flex items-center gap-2 text-xs font-mono text-slate-400">
+                    <span>Unrated</span>
+                </div>
+                {% endif %}
+
+                <!-- Email & Joined Date -->
+                <div class="flex items-center gap-3 mt-2 text-xs text-zinc-500 flex-wrap">
+                    <span class="break-all">{{ student.email }}</span>
+                    <span>•</span>
+                    <span class="font-mono">Joined {{ student.created_at.strftime('%b %d, %Y') if student.created_at else '—' }}</span>
+                </div>
+
+                {# Edit Profile Action (Coach OR Student viewing own profile) #}
+                {% if current_user and (current_user.is_coach() or current_user.id == student.id) %}
+                <div class="mt-3.5">
+                    <button type="button" onclick="Kotchy.openModal('edit-student-modal')"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 transition-colors shadow-xs">
+                        <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                        <span>Edit Profile</span>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right: Codeforces Profile Image (Framed Portrait Rectangle) -->
+            <div class="flex-shrink-0 self-start">
+                {% if student.cf_title_photo %}
+                <div class="p-1 bg-white border border-zinc-300 rounded shadow-xs">
+                    <img src="{{ student.cf_title_photo }}"
+                         alt="{{ student.username }}"
+                         class="w-24 sm:w-28 md:w-32 aspect-[3/4] object-cover rounded-xs block bg-zinc-50"
+                         loading="lazy">
+                </div>
+                {% else %}
+                <div class="w-24 sm:w-28 md:w-32 aspect-[3/4] p-1 bg-white border border-zinc-300 rounded shadow-xs flex flex-col items-center justify-center text-center">
+                    <div class="w-full h-full bg-zinc-100 rounded-xs flex flex-col items-center justify-center font-mono font-bold text-zinc-400 text-xl">
+                        {{ student.username[:2]|upper }}
                     </div>
                 </div>
+                {% endif %}
             </div>
-
-            <!-- Header Actions: Edit Data & Assign Task (Coach Only) -->
-            {% if current_user and current_user.is_coach() %}
-            <div class="flex items-center gap-2">
-                <button type="button" onclick="Kotchy.openModal('edit-student-modal')"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md border border-z   inc-300 bg-white text-zinc-700 hover:bg-zinc-50 transition-colors shadow-xs">
-                    Edit Profile
-                </button>
-                <button type="button" onclick="Kotchy.openModal('assign-modal')"
-                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs">
-                    + Assign Task
-                </button>
-            </div>
-            {% endif %}
         </div>
     </div>
 
     <!-- ── Assigned Tasks Section ──────────────────────────────── -->
     <div class="bg-white border border-zinc-200 rounded-lg overflow-hidden">
-        <!-- Section Bar & Filter Tabs -->
+        <!-- Section Bar & Filter Tabs + Assign Action -->
         <div class="px-4 py-3 border-b border-zinc-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
                 <h2 class="text-xs font-semibold uppercase tracking-wider text-zinc-500">Assigned Tasks</h2>
             </div>
 
-            <!-- Filter Tabs -->
-            <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200">
-                <button type="button" data-filter="all"
-                    onclick="Kotchy.filterItems('all', '.task-row', 'data-status-category')"
-                    class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-900 text-white transition-colors">
-                    All ({{ sorted_tasks|length }})
+            {# Filter Controls #}
+            <div class="flex items-center gap-2.5 flex-wrap">
+                <!-- Filter Tabs -->
+                <div class="flex items-center gap-1 bg-zinc-100 p-0.5 rounded-lg border border-zinc-200 overflow-x-auto max-w-full">
+                    <button type="button" data-filter="all"
+                        onclick="Kotchy.filterItems('all', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-zinc-900 text-white transition-colors">
+                        All ({{ sorted_tasks|length }})
+                    </button>
+                    <button type="button" data-filter="in_progress"
+                        onclick="Kotchy.filterItems('in_progress', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                        In Progress ({{ in_progress_count }})
+                    </button>
+                    <button type="button" data-filter="completed"
+                        onclick="Kotchy.filterItems('completed', '.task-row', 'data-status-category')"
+                        class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
+                        Completed ({{ completed_count }})
+                    </button>
+                </div>
+
+                {# Coach Assign Task Action #}
+                {% if current_user and current_user.is_coach() %}
+                <button type="button" onclick="Kotchy.openModal('assign-modal')"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-zinc-900 text-white hover:bg-zinc-800 transition-colors shadow-xs flex items-center gap-1">
+                    + Assign Task
                 </button>
-                <button type="button" data-filter="in_progress"
-                    onclick="Kotchy.filterItems('in_progress', '.task-row', 'data-status-category')"
-                    class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
-                    In Progress ({{ in_progress_count }})
-                </button>
-                <button type="button" data-filter="completed"
-                    onclick="Kotchy.filterItems('completed', '.task-row', 'data-status-category')"
-                    class="filter-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition-colors">
-                    Completed ({{ completed_count }})
-                </button>
+                {% endif %}
             </div>
         </div>
 
@@ -140,21 +162,28 @@
             {% for item in sorted_tasks %}
             {% set a = item.assignment %}
             {% set t = item.task %}
+            {% set is_done = a.status in ['completed', 'late'] %}
+            {% set is_prog = a.status == 'in_progress' %}
+            {% set row_hover = 'task-row-completed' if is_done else ('task-row-progress' if is_prog else 'task-row-pending') %}
+            {% set badge_hover = 'status-badge-completed' if a.status == 'completed' else ('status-badge-progress' if a.status in ['in_progress', 'late'] else 'status-badge-pending') %}
             <div id="assignment-row-{{ a.id }}"
-                class="task-row p-4 hover:bg-zinc-50/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                data-status-category="{{ 'completed' if a.status in ['completed', 'late'] else 'in_progress' }}">
-                <div class="min-w-0">
+                class="task-row {{ row_hover }} border-l-4 {% if is_done %}border-l-emerald-500{% elif is_prog %}border-l-amber-500{% else %}border-l-slate-400{% endif %} p-4 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white"
+                data-status-category="{{ 'completed' if is_done else 'in_progress' }}">
+                <div class="min-w-0 flex-1">
                     <div class="flex items-center gap-2 flex-wrap">
                         <span
-                            class="text-xs font-mono uppercase px-1.5 py-0.5 rounded border bg-zinc-100 text-zinc-700 border-zinc-300">
+                            class="text-[11px] font-mono uppercase px-2 py-0.5 rounded font-semibold border
+                            {% if t.task_type == 'CF_SHEET' %}bg-sky-50 text-sky-700 border-sky-200
+                            {% elif t.task_type == 'CF_CONTEST' %}bg-purple-50 text-purple-700 border-purple-200
+                            {% else %}bg-zinc-100 text-zinc-700 border-zinc-200{% endif %}">
                             {{ t.task_type }}
                         </span>
-                        <a href="/tasks/{{ t.id }}" class="text-sm font-semibold text-zinc-900 hover:underline">
+                        <a href="/tasks/{{ t.id }}" class="text-sm font-semibold text-zinc-900 hover:text-sky-700 hover:underline">
                             {{ t.title }}
                         </a>
                     </div>
 
-                    <!-- Deadline & Solved Status -->
+                    <!-- Deadline & Completed Status -->
                     <div class="flex items-center gap-3 mt-1.5 text-xs text-zinc-500 flex-wrap">
                         <!-- Deadline Status -->
                         <span class="font-mono {% if item.is_overdue %}text-rose-700 font-medium{% endif %}">
@@ -162,35 +191,52 @@
                             {% if item.is_overdue %}(Overdue){% endif %}
                         </span>
                         <span>•</span>
-                        <!-- Solved Ratio -->
-                        <span id="assignment-solved-{{ a.id }}" class="font-mono font-medium text-zinc-700">
-                            {{ item.solved_count }}/{{ item.required_count }} Solved
+                        <!-- Completed Ratio -->
+                        <span id="assignment-solved-{{ a.id }}" class="font-mono font-medium {% if is_done %}text-emerald-700{% elif is_prog %}text-amber-700{% else %}text-zinc-600{% endif %}">
+                            {{ item.solved_count }}/{{ item.required_count }} Completed
                         </span>
                         {% if item.last_checked %}
                         <span>•</span>
                         <span class="text-zinc-400 font-mono text-[11px]">Checked: {{ item.last_checked }}</span>
                         {% endif %}
                     </div>
+
+                    {% if is_prog %}
+                    <!-- Progress Bar (Only shown for In Progress tasks) -->
+                    <div class="mt-2.5 max-w-xs sm:max-w-sm space-y-1">
+                        <div class="flex items-center justify-between text-[11px] font-mono">
+                            <span class="text-amber-700 font-medium flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                Progress
+                            </span>
+                            <span class="font-bold text-amber-900">{{ item.progress_pct }}%</span>
+                        </div>
+                        <div class="w-full bg-amber-100/70 rounded-full h-1.5 overflow-hidden border border-amber-200/60">
+                            <div class="h-full rounded-full bg-amber-500 transition-all duration-300"
+                                 style="width: {{ item.progress_pct }}%;"></div>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
 
                 <!-- Right Status Pill & Check Action -->
-                <div class="flex items-center gap-2 flex-shrink-0">
-                    <span id="assignment-badge-{{ a.id }}" class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium border
+                <div class="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t border-zinc-100 sm:border-0 flex-shrink-0">
+                    <span id="assignment-badge-{{ a.id }}" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono font-medium border {{ badge_hover }}
                             {% if a.status == 'completed' %}text-emerald-700 bg-emerald-50 border-emerald-200
                             {% elif a.status == 'late' %}text-amber-700 bg-amber-50 border-amber-200
-                            {% elif a.status == 'in_progress' %}text-zinc-700 bg-zinc-100 border-zinc-200
+                            {% elif a.status == 'in_progress' %}text-amber-700 bg-amber-50 border-amber-200
                             {% else %}text-zinc-500 bg-zinc-50 border-zinc-200{% endif %}">
                         <span class="w-1.5 h-1.5 rounded-full 
                                 {% if a.status == 'completed' %}bg-emerald-500
                                 {% elif a.status == 'late' %}bg-amber-500
-                                {% elif a.status == 'in_progress' %}bg-zinc-400
-                                {% else %}bg-zinc-300{% endif %}"></span>
-                        {{ 'Solved' if a.status == 'completed' else 'Late' if a.status == 'late' else 'In Progress' if
+                                {% elif a.status == 'in_progress' %}bg-amber-500
+                                {% else %}bg-zinc-400{% endif %}"></span>
+                        {{ 'Completed' if a.status == 'completed' else 'Late' if a.status == 'late' else 'In Progress' if
                         a.status == 'in_progress' else 'Pending' }}
                     </span>
 
                     <button type="button" data-check-id="{{ a.id }}"
-                        class="check-assignment-btn px-2.5 py-1 text-xs font-medium rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 transition-colors">
+                        class="check-assignment-btn px-2.5 py-1 text-xs font-medium rounded border border-zinc-300 bg-white hover:bg-zinc-50 text-zinc-700 transition-colors shadow-2xs">
                         Run Check
                     </button>
 
@@ -217,21 +263,33 @@
 
 </div>
 
-{% if current_user and current_user.is_coach() %}
+{% if current_user and (current_user.is_coach() or current_user.id == student.id) %}
 <!-- ── Edit Student / User Modal ────────────────────────────── -->
 <div id="edit-student-modal"
     class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
     <div class="bg-white border border-zinc-200 max-w-xl w-full rounded-lg p-5 shadow-lg max-h-[90vh] flex flex-col">
         <div class="flex items-center justify-between pb-3 border-b border-zinc-100 flex-shrink-0">
             <div>
-                <h3 class="text-sm font-bold text-zinc-900">Edit User Profile • {{ student.username }}</h3>
-                <p class="text-[11px] text-zinc-500">Update account identity, platform handles, or reset password</p>
+                <h3 class="text-sm font-bold text-zinc-900">
+                    {% if current_user.id == student.id and not current_user.is_coach() %}
+                    Edit My Profile
+                    {% else %}
+                    Edit User Profile • {{ student.username }}
+                    {% endif %}
+                </h3>
+                <p class="text-[11px] text-zinc-500">
+                    {% if current_user.id == student.id and not current_user.is_coach() %}
+                    Update your account identity, platform handles, or change password
+                    {% else %}
+                    Update account identity, platform handles, or reset password
+                    {% endif %}
+                </p>
             </div>
             <button type="button" onclick="Kotchy.closeModal('edit-student-modal')"
                 class="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
         </div>
 
-        <form id="edit-student-form" data-student-id="{{ student.id }}" action="javascript:void(0);"
+        <form id="edit-student-form" data-student-id="{{ student.id }}" data-is-coach="{{ 'true' if current_user and current_user.is_coach() else 'false' }}" action="javascript:void(0);"
             class="mt-4 space-y-4 overflow-y-auto pr-1 flex-1">
             <!-- Basic Details -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -247,7 +305,8 @@
                 </div>
             </div>
 
-            <!-- Role & Status -->
+            {% if current_user and current_user.is_coach() %}
+            <!-- Role & Status (Coach Only) -->
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                     <label class="block text-xs font-medium text-zinc-700 mb-1">Role</label>
@@ -272,6 +331,15 @@
                         class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
                 </div>
             </div>
+            {% else %}
+            <!-- Phone Number for Student Self-Edit -->
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Phone Number</label>
+                <input type="text" name="phone_number" value="{{ student.phone_number or '' }}"
+                    placeholder="+201..."
+                    class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+            </div>
+            {% endif %}
 
             <!-- Platform Handles -->
             <div class="pt-2 border-t border-zinc-100">
@@ -312,13 +380,14 @@
                         class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-zinc-700 mb-1">Bio / Coach Notes</label>
-                    <textarea name="description" rows="2" placeholder="Student background, goals, or coach notes..."
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Bio / Notes</label>
+                    <textarea name="description" rows="2" placeholder="Student background, goals, or notes..."
                         class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">{{ student.description or '' }}</textarea>
                 </div>
             </div>
 
-            <!-- Password Reset Action Box -->
+            {% if current_user and current_user.is_coach() %}
+            <!-- Password Reset Action Box (Coach Only) -->
             <div id="reset-pwd-box" class="p-3.5 rounded-lg bg-amber-50 border border-amber-200 transition-all">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
@@ -370,6 +439,15 @@
                     </div>
                 </div>
             </div>
+            {% else %}
+            <!-- Change Password (Optional for Student) -->
+            <div class="pt-2 border-t border-zinc-100">
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Change Password</label>
+                <input type="password" name="password" placeholder="Leave blank to keep your current password"
+                    class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+                <span class="text-[11px] text-zinc-400 mt-0.5 block">Only enter a new password if you wish to change it.</span>
+            </div>
+            {% endif %}
 
             <div class="pt-3 flex items-center justify-end gap-2 border-t border-zinc-100 flex-shrink-0">
                 <button type="button" onclick="Kotchy.closeModal('edit-student-modal')"
@@ -384,7 +462,9 @@
         </form>
     </div>
 </div>
+{% endif %}
 
+{% if current_user and current_user.is_coach() %}
 <!-- ── Assign Task Modal for this Student ───────────────────── -->
 <div id="assign-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
     <div class="bg-white border border-zinc-200 max-w-md w-full rounded-lg p-5 shadow-lg">
@@ -408,7 +488,7 @@
                 </select>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="block text-xs font-medium text-zinc-700 mb-1">Start Date</label>
                     <input type="datetime-local" name="start_date"
@@ -438,7 +518,6 @@
 {% endblock %}
 
 {% block scripts %}
-{% if current_user and current_user.is_coach() %}
 <script>
     async function handleAssignSingle(event) {
         event.preventDefault();
@@ -526,18 +605,18 @@
             }
         }
     }
-
     async function handleEditStudent(event, studentId) {
         event.preventDefault();
         const form = event.target;
         const btn = form.querySelector('button[type="submit"]');
         const originalText = btn.innerHTML;
 
+        const isCoach = form.getAttribute('data-is-coach') === 'true';
+        const endpoint = isCoach ? `/api/students/${studentId}` : '/api/auth/profile';
+
         const payload = {
             username: form.username.value.trim(),
             email: form.email.value.trim(),
-            role: form.role ? form.role.value : 'student',
-            is_active: form.is_active ? form.is_active.value === 'true' : true,
             phone_number: form.phone_number?.value.trim() || null,
             cf_handle: form.cf_handle?.value.trim() || null,
             vjudge_handle: form.vjudge_handle?.value.trim() || null,
@@ -546,22 +625,27 @@
             linkedin_url: form.linkedin_url?.value.trim() || null,
             description: form.description?.value.trim() || null,
         };
+        if (form.role) payload.role = form.role.value;
+        if (form.is_active) payload.is_active = form.is_active.value === 'true';
+        if (form.password && form.password.value.trim()) {
+            payload.password = form.password.value.trim();
+        }
 
         try {
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
 
-            const res = await fetch(`/api/students/${studentId}`, {
+            const res = await fetch(endpoint, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.detail || 'Failed to update student profile.');
+            if (!res.ok) throw new Error(data.detail || 'Failed to update profile.');
 
             if (window.Kotchy && window.Kotchy.showToast) {
-                Kotchy.showToast(`User ${data.username} updated successfully.`);
+                Kotchy.showToast(`Profile updated successfully.`);
                 Kotchy.closeModal('edit-student-modal');
             }
             setTimeout(() => window.location.reload(), 400);
@@ -605,6 +689,11 @@
             Kotchy.Assignment.checkAssignment(parseInt(id), checkBtn);
             return;
         }
+    });
+</script>
+{% if current_user and current_user.is_coach() %}
+<script>
+    document.addEventListener('click', (e) => {
         const delBtn = e.target.closest('.delete-assignment-btn');
         if (delBtn) {
             const id = delBtn.getAttribute('data-delete-id');

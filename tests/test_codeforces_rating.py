@@ -23,7 +23,42 @@ from app.services.codeforces_api import (
     prefetch_cf_info,
     verify_handle,
 )
-from sqlmodel import Session
+from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel.pool import StaticPool
+from app.core.database import get_session
+from app.main import app
+
+test_engine = create_engine(
+    "sqlite:///:memory:",
+    connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
+)
+
+
+def override_get_session():
+    with Session(test_engine) as session:
+        yield session
+
+
+@pytest.fixture(autouse=True)
+def setup_isolated_db(monkeypatch):
+    monkeypatch.setattr("app.main.init_db", lambda: None)
+    SQLModel.metadata.create_all(test_engine)
+    app.dependency_overrides[get_session] = override_get_session
+    with Session(test_engine) as session:
+        from app.core.security import get_password_hash
+        coach = User(
+            username="coach",
+            email="coach@kotshy.dev",
+            hashed_password=get_password_hash("adminpassword"),
+            role="coach",
+            is_active=True,
+        )
+        session.add(coach)
+        session.commit()
+    yield
+    SQLModel.metadata.drop_all(test_engine)
+    app.dependency_overrides.pop(get_session, None)
 
 
 @pytest.fixture(autouse=True)
@@ -215,9 +250,8 @@ def test_student_profile_renders_current_and_max_rating():
     client = TestClient(app)
 
     # Login as coach
-    login_res = client.post("/api/auth/login", json={"username_or_email": "coach", "password": "123"})
-    if login_res.status_code != 200:
-        login_res = client.post("/api/auth/login", json={"username_or_email": "coach", "password": "12345678"})
+    login_res = client.post("/api/auth/login", json={"username_or_email": "coach", "password": "adminpassword"})
+    assert login_res.status_code == 200
 
     mock_cf_profile = [
         {
@@ -255,3 +289,33 @@ def test_student_profile_renders_current_and_max_rating():
         # Shows rating label
         assert "Rating:" in page.text
         assert "Max:" in page.text
+
+
+def test_user_cf_title_photo_normalization():
+    """Verify that titlePhoto URL is normalized from userpic.codeforces.org to codeforces.com/userpic."""
+    # 1. Full URL with userpic.codeforces.org
+    raw_1 = "https://userpic.codeforces.org/2817810/title/1b956a5bf70207e3.jpg"
+    assert User._normalize_cf_photo_url(raw_1) == "https://codeforces.com/userpic/2817810/title/1b956a5bf70207e3.jpg"
+
+    # 2. Protocol-relative URL
+    raw_2 = "//userpic.codeforces.org/no-title.jpg"
+    assert User._normalize_cf_photo_url(raw_2) == "https://codeforces.com/userpic/no-title.jpg"
+
+    # 3. Path-only URL
+    raw_3 = "/userpic/no-title.jpg"
+    assert User._normalize_cf_photo_url(raw_3) == "https://codeforces.com/userpic/no-title.jpg"
+
+    # 4. None / empty
+    assert User._normalize_cf_photo_url(None) is None
+    assert User._normalize_cf_photo_url("") is None
+
+    # Test on User instance with mock
+    u = User(username="phototest", email="photo@test.com", hashed_password="pw", cf_handle="phototest")
+    mock_data = {
+        "handle": "phototest",
+        "titlePhoto": "https://userpic.codeforces.org/123/title/abc.jpg",
+        "avatar": "https://userpic.codeforces.org/123/avatar/def.jpg",
+    }
+    with patch("app.services.codeforces_api._request", return_value=[mock_data]):
+        assert u.cf_title_photo == "https://codeforces.com/userpic/123/title/abc.jpg"
+        assert u.cf_avatar_url == "https://codeforces.com/userpic/123/avatar/def.jpg"

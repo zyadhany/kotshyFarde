@@ -517,23 +517,35 @@ const Kotchy = {
         const badgeEl = document.getElementById(`assignment-badge-${assignmentId}`);
         if (badgeEl) {
           if (status === 'completed') {
-            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-emerald-700 bg-emerald-50 border border-emerald-200';
-            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Solved`;
+            badgeEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 status-badge-completed';
+            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Completed`;
           } else if (status === 'late') {
-            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-amber-700 bg-amber-50 border border-amber-200';
+            badgeEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-amber-700 bg-amber-50 border border-amber-200 status-badge-progress';
             badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Late`;
           } else if (status === 'in_progress') {
-            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-zinc-700 bg-zinc-100 border border-zinc-200';
-            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> In Progress`;
+            badgeEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-amber-700 bg-amber-50 border border-amber-200 status-badge-progress';
+            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> In Progress`;
           } else {
-            badgeEl.className = 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-mono font-medium text-zinc-500 bg-zinc-50 border border-zinc-200';
-            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-zinc-300"></span> Pending`;
+            badgeEl.className = 'inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-medium text-zinc-600 bg-zinc-50 border border-zinc-200 status-badge-pending';
+            badgeEl.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span> Pending`;
+          }
+        }
+
+        const rowEl = document.getElementById(`assignment-row-${assignmentId}`);
+        if (rowEl) {
+          rowEl.classList.remove('task-row-completed', 'task-row-progress', 'task-row-pending');
+          if (status === 'completed') {
+            rowEl.classList.add('task-row-completed');
+          } else if (status === 'in_progress' || status === 'late') {
+            rowEl.classList.add('task-row-progress');
+          } else {
+            rowEl.classList.add('task-row-pending');
           }
         }
 
         const countEl = document.getElementById(`assignment-solved-${assignmentId}`);
         if (countEl) {
-          countEl.textContent = `${solvedCount} solved`;
+          countEl.textContent = `${solvedCount} completed`;
         }
       } catch (err) {
         Kotchy.showToast(err.message, 'error');

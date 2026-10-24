@@ -9,7 +9,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Minimal Custom Overrides -->
-    <link rel="stylesheet" href="/static/css/style.css?v=5">
+    <link rel="stylesheet" href="/static/css/style.css?v=7">
     <link rel="stylesheet" href="/static/css/task-problems.css?v=1">
 
     {% block extra_head %}{% endblock %}
@@ -20,13 +20,13 @@
     <header class="h-14 bg-sky-100 border-b border-sky-200 sticky top-0 z-30 shadow-xs">
         <div class="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
             <!-- Left: Brand & Navigation -->
-            <div class="flex items-center gap-6">
-                <a href="{% if current_user and current_user.is_student() %}/my-profile{% else %}/{% endif %}" class="flex items-center gap-2.5 group">
+            <div class="flex items-center gap-4 sm:gap-6">
+                <a href="{% if current_user and current_user.is_student() %}/my-profile{% else %}/{% endif %}" class="flex items-center gap-2 group flex-shrink-0">
                     <div class="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs shadow-xs shadow-sky-600/30 group-hover:bg-sky-500 transition-colors">
                         K
                     </div>
                     <span class="font-bold text-base tracking-tight text-slate-900 group-hover:text-sky-700 transition-colors">Kotchy</span>
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white text-sky-700 border border-sky-200 uppercase tracking-wide font-medium shadow-xs">Tracker</span>
+                    <span class="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-white text-sky-700 border border-sky-200 uppercase tracking-wide font-medium shadow-xs">Tracker</span>
                 </a>
 
                 {% macro nav_link(url, label, page_id) -%}
@@ -36,7 +36,8 @@
                     </a>
                 {%- endmacro %}
 
-                <nav class="flex items-center gap-1.5">
+                <!-- Desktop Navigation Links -->
+                <nav class="nav-desktop-only items-center gap-1.5">
                     {% if current_user and current_user.is_coach() %}
                         {{ nav_link('/', 'Dashboard', 'dashboard') }}
                         {{ nav_link('/students', 'Students', 'students') }}
@@ -48,22 +49,22 @@
                 </nav>
             </div>
 
-            <!-- Right: User Identity & Actions -->
-            <div class="flex items-center gap-3">
+            <!-- Right: User Identity & Actions + Mobile Toggle -->
+            <div class="flex items-center gap-2 sm:gap-3">
                 {% if current_user %}
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-1.5 sm:gap-2">
                         <!-- User Name + Role Badge -->
-                        <div class="flex items-center gap-2 px-2.5 py-1 rounded-full bg-white border border-sky-200 text-xs shadow-xs">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                            <span class="font-bold {{ current_user.cf_rating_class if current_user.cf_handle else 'text-slate-800' }}">{{ current_user.username }}</span>
-                            <span class="text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-semibold {% if current_user.is_coach() %}bg-sky-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        <div class="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 rounded-full bg-white border border-sky-200 text-xs shadow-xs">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></span>
+                            <span class="font-bold truncate max-w-[100px] sm:max-w-none {{ current_user.cf_rating_class if current_user.cf_handle else 'text-slate-800' }}">{{ current_user.username }}</span>
+                            <span class="hidden sm:inline-block text-[10px] font-mono uppercase px-1.5 py-0.2 rounded font-semibold {% if current_user.is_coach() %}bg-sky-600 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
                                 {{ "Coach" if current_user.is_coach() else "Student" }}
                             </span>
                         </div>
 
                         <!-- Sign Out Button -->
                         <a href="/logout" 
-                           class="px-2.5 py-1 text-xs font-medium rounded-md bg-white border border-sky-200 text-slate-700 hover:text-rose-600 hover:border-rose-200 shadow-xs transition-colors">
+                           class="px-2 sm:px-2.5 py-1 text-xs font-medium rounded-md bg-white border border-sky-200 text-slate-700 hover:text-rose-600 hover:border-rose-200 shadow-xs transition-colors flex-shrink-0">
                             Sign Out
                         </a>
                     </div>
@@ -73,9 +74,37 @@
                         Sign In
                     </a>
                 {% endif %}
+
+                <!-- Mobile Hamburger Button -->
+                {% if current_user %}
+                <button type="button" 
+                        onclick="document.getElementById('mobile-nav-menu').classList.toggle('hidden')"
+                        class="nav-mobile-toggle p-1.5 rounded-md text-slate-700 hover:text-sky-700 hover:bg-white/60 focus:outline-none transition-colors"
+                        aria-label="Toggle navigation menu">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                {% endif %}
             </div>
         </div>
     </header>
+
+    <!-- ── Mobile Collapsible Navigation Menu (Hidden on desktop) ── -->
+    {% if current_user %}
+    <div id="mobile-nav-menu" class="hidden bg-sky-50 border-b border-sky-200 px-4 py-2.5 shadow-md sticky top-14 z-20">
+        <nav class="flex flex-col gap-1">
+            {% if current_user and current_user.is_coach() %}
+                {{ nav_link('/', 'Dashboard', 'dashboard') }}
+                {{ nav_link('/students', 'Students', 'students') }}
+                {{ nav_link('/tasks', 'Tasks', 'tasks') }}
+                {{ nav_link('/assignments', 'Assignments', 'assignments') }}
+            {% elif current_user and current_user.is_student() %}
+                {{ nav_link('/my-profile', 'My Profile', 'my_profile') }}
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
 
     <!-- ── Main Workspace Container ────────────────────────────── -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6">

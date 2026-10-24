@@ -236,21 +236,40 @@ def student_detail_page(
             except Exception:
                 last_checked = str(res["last_checked"])[:16]
 
+        progress_pct = (
+            min(100, int((solved_count / required_count) * 100))
+            if required_count > 0
+            else 0
+        )
+
         task_items.append({
             "assignment": a,
             "task": task,
             "is_overdue": is_overdue,
             "solved_count": solved_count,
             "required_count": required_count,
+            "progress_pct": progress_pct,
             "last_checked": last_checked,
             "is_completed": a.status in ("completed", "late"),
+            "deadline_aware": deadline_aware,
         })
 
-    # SORTING RULE: In Progress / Pending tasks at top, Completed tasks at bottom
+    # SORTING RULE: in_progress at top (0), pending after (1), completed at last (2)
+    def status_priority(item):
+        status = item["assignment"].status
+        if status == "in_progress":
+            return 0
+        elif status == "pending":
+            return 1
+        elif status in ("completed", "late"):
+            return 2
+        return 1
+
     task_items.sort(
         key=lambda x: (
-            1 if x["is_completed"] else 0,
-            x["assignment"].deadline or datetime.max.replace(tzinfo=timezone.utc),
+            status_priority(x),
+            x["deadline_aware"] or datetime.max.replace(tzinfo=timezone.utc),
+            x["assignment"].id,
         )
     )
 

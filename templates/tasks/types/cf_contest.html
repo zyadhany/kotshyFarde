@@ -23,7 +23,7 @@
     </div>
 
     <!-- ── 2 Tabs Navigation: Problems | Standings ─────────────── -->
-    <div class="task-tabs-bar flex items-center justify-between gap-3">
+    <div class="task-tabs-bar flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 sm:pb-0">
         <div class="flex items-center gap-1.5">
             <!-- Problems Tab Button -->
             <button type="button" 
@@ -63,7 +63,7 @@
     <div id="contest-tab-problems" class="contest-tab-pane" role="tabpanel" aria-label="Contest Problems">
         {% if current_user and current_user.is_coach() and assigned_students|length > 0 %}
             <!-- Problems Filter Toolbar for Coach Highlight -->
-            <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2 text-xs">
+            <div class="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center gap-2 text-xs">
                 <span class="text-slate-600 font-medium flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                     <span>Highlight Solves for Student:</span>
@@ -84,7 +84,7 @@
         {% endif %}
 
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
+            <table class="w-full min-w-[460px] text-left text-xs border-collapse">
                 <thead>
                     <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-500 font-medium">
                         <th class="py-2 px-3.5 font-mono w-14 border-l-4 border-l-transparent">Index</th>
@@ -148,7 +148,7 @@
     <!-- ── TAB 2: STANDINGS ─────────────────────────────────────── -->
     <div id="contest-tab-standings" class="contest-tab-pane hidden" role="tabpanel" aria-label="Codeforces Contest Standings">
         <div class="overflow-x-auto">
-            <table class="w-full text-center text-xs border-collapse">
+            <table class="w-full min-w-[500px] text-center text-xs border-collapse">
                 <thead>
                     <tr class="border-b border-slate-200 bg-slate-50/60 text-slate-600 font-medium">
                         <th class="py-2 px-3 text-left w-12 font-mono border-l-4 border-l-transparent">#</th>

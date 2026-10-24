@@ -20,7 +20,29 @@ body {
 }
 
 .hidden {
+  display: none;
+}
+
+.kotchy-modal.hidden {
   display: none !important;
+}
+
+/* ── Responsive Navigation Helpers ────────────────────────────── */
+@media (max-width: 767px) {
+  .nav-desktop-only {
+    display: none !important;
+  }
+}
+@media (min-width: 768px) {
+  .nav-desktop-only {
+    display: flex !important;
+  }
+  .nav-mobile-toggle {
+    display: none !important;
+  }
+  #mobile-nav-menu {
+    display: none !important;
+  }
 }
 
 code, pre, .font-mono {
@@ -153,3 +175,97 @@ a:hover .cf-user-legendary::first-letter {
   border: 1px solid #e2e8f0;
   background-color: #f8fafc;
 }
+
+/* ── Task Status Light Hover Effects ─────────────────────────── */
+/* Completed: light green hover, subtle green border & glow */
+.task-row-completed,
+.task-status-completed {
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 4px solid #10b981 !important;
+}
+tr.task-row-completed > td:first-child {
+  border-left: 4px solid #10b981 !important;
+}
+.task-row-completed:hover,
+.task-status-completed:hover {
+  background-color: #f0fdf4 !important; /* emerald-50 light green */
+  border-left-color: #059669 !important;
+  box-shadow: 0 1px 4px 0 rgba(16, 185, 129, 0.15);
+}
+tr.task-row-completed:hover > td {
+  background-color: #f0fdf4 !important;
+}
+
+/* In Progress: light yellow/amber hover, subtle amber border & glow */
+.task-row-progress,
+.task-status-progress,
+.task-status-in_progress {
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 4px solid #f59e0b !important;
+}
+tr.task-row-progress > td:first-child {
+  border-left: 4px solid #f59e0b !important;
+}
+.task-row-progress:hover,
+.task-status-progress:hover,
+.task-status-in_progress:hover {
+  background-color: #fffbeb !important; /* amber-50 light yellow */
+  border-left-color: #d97706 !important;
+  box-shadow: 0 1px 4px 0 rgba(245, 158, 11, 0.15);
+}
+tr.task-row-progress:hover > td {
+  background-color: #fffbeb !important;
+}
+
+/* Pending: light gray hover, subtle gray border & glow */
+.task-row-pending,
+.task-status-pending {
+  transition: all 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  border-left: 4px solid #94a3b8 !important;
+}
+tr.task-row-pending > td:first-child {
+  border-left: 4px solid #94a3b8 !important;
+}
+.task-row-pending:hover,
+.task-status-pending:hover {
+  background-color: #f8fafc !important; /* slate-50 light gray */
+  border-left-color: #64748b !important;
+  box-shadow: 0 1px 4px 0 rgba(148, 163, 184, 0.15);
+}
+tr.task-row-pending:hover > td {
+  background-color: #f8fafc !important;
+}
+
+/* Status Badges with light hover */
+.status-badge-completed {
+  transition: all 150ms ease;
+}
+.status-badge-completed:hover {
+  background-color: #dcfce7 !important; /* emerald-100 */
+  border-color: #86efac !important;
+  color: #15803d !important;
+  box-shadow: 0 1px 2px 0 rgba(16, 185, 129, 0.2);
+}
+
+.status-badge-progress,
+.status-badge-in_progress {
+  transition: all 150ms ease;
+}
+.status-badge-progress:hover,
+.status-badge-in_progress:hover {
+  background-color: #fef3c7 !important; /* amber-100 */
+  border-color: #fde68a !important;
+  color: #b45309 !important;
+  box-shadow: 0 1px 2px 0 rgba(245, 158, 11, 0.2);
+}
+
+.status-badge-pending {
+  transition: all 150ms ease;
+}
+.status-badge-pending:hover {
+  background-color: #f1f5f9 !important; /* slate-100 */
+  border-color: #cbd5e1 !important;
+  color: #334155 !important;
+  box-shadow: 0 1px 2px 0 rgba(100, 116, 139, 0.2);
+}
+

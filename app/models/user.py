@@ -132,6 +132,37 @@ class User(SQLModel, table=True):
         r = self.get_cf_rating()
         return r is not None and r >= 3000
 
+    @property
+    def cf_title_photo(self) -> Optional[str]:
+        """Return direct Codeforces title photo URL, normalized for codeforces.com."""
+        info = self.get_cf_info()
+        if not info:
+            return None
+        raw_url = info.get("titlePhoto") or info.get("avatar")
+        return self._normalize_cf_photo_url(raw_url)
+
+    @property
+    def cf_avatar_url(self) -> Optional[str]:
+        """Return direct Codeforces avatar URL, normalized for codeforces.com."""
+        info = self.get_cf_info()
+        if not info:
+            return None
+        raw_url = info.get("avatar") or info.get("titlePhoto")
+        return self._normalize_cf_photo_url(raw_url)
+
+    @staticmethod
+    def _normalize_cf_photo_url(url: Optional[str]) -> Optional[str]:
+        if not url or not str(url).strip():
+            return None
+        url = str(url).strip()
+        if url.startswith("//"):
+            url = f"https:{url}"
+        elif url.startswith("/"):
+            url = f"https://codeforces.com{url}"
+        if "userpic.codeforces.org/" in url:
+            url = url.replace("userpic.codeforces.org/", "codeforces.com/userpic/")
+        return url
+
     # ── Backwards Compatibility Alias for password_hash ───────
     @property
     def password_hash(self) -> str:

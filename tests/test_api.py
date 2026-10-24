@@ -890,12 +890,31 @@ def test_coach_edit_student_data_and_ui(client):
     assert "Reset Account Password" in page_res.text
     assert client.get(f"/students-page/{s_id}").status_code == 200
 
-    # Student viewing personal profile does NOT see Edit Profile or edit-student-modal
+    # Student viewing personal profile sees Edit Profile and edit-student-modal, but not coach controls
     client.post("/api/auth/login", json={"username_or_email": "edited_student_name", "password": "pass"})
     my_page = client.get("/my-profile")
     assert my_page.status_code == 200
-    assert "Edit Profile" not in my_page.text
-    assert "edit-student-modal" not in my_page.text
+    assert "Edit Profile" in my_page.text
+    assert "edit-student-modal" in my_page.text
+    assert "Reset Account Password" not in my_page.text
+
+    # Student updates own profile via /api/auth/profile
+    self_edit_res = client.put(
+        "/api/auth/profile",
+        json={
+            "username": "self_edited_student",
+            "email": "self_edited@kotchy.dev",
+            "phone_number": "+201199999999",
+            "cf_handle": "self_cf",
+            "role": "coach",  # Attempting privilege escalation
+        },
+    )
+    assert self_edit_res.status_code == 200
+    self_data = self_edit_res.json()
+    assert self_data["username"] == "self_edited_student"
+    assert self_data["email"] == "self_edited@kotchy.dev"
+    assert self_data["phone_number"] == "+201199999999"
+    assert self_data["role"] == "student"  # Role remained student
 
 
 def test_contest_task_page_no_direct_link_and_green_solved_problem(client):
@@ -1856,14 +1875,125 @@ def test_student_task_view_deadline_timer(client):
         assert "Recheck Submissions" in student_page.text
 
 
+def test_profile_tasks_sorting_order(client: TestClient):
+    """Verify that tasks in student profile are sorted: in_progress top, pending after, completed last."""
+    login_as_coach(client)
+
+    # 1. Create a student
+    s_res = client.post(
+        "/api/students/",
+        json={"username": "sort_student", "email": "sort_s@test.com", "password": "pass"},
+    )
+    student_id = s_res.json()["id"]
+
+    # 2. Create 3 tasks
+    t1 = client.post("/api/tasks/", json={"title": "Task InProgress", "task_type": "CF_SHEET", "config": {"problems": ["1A"]}}).json()["id"]
+    t2 = client.post("/api/tasks/", json={"title": "Task Pending", "task_type": "CF_SHEET", "config": {"problems": ["2A"]}}).json()["id"]
+    t3 = client.post("/api/tasks/", json={"title": "Task Completed", "task_type": "CF_SHEET", "config": {"problems": ["3A"]}}).json()["id"]
+
+    # 3. Assign tasks to student
+    a1 = client.post("/api/assignments/", json={"task_id": t1, "student_id": student_id}).json()["id"]
+    a2 = client.post("/api/assignments/", json={"task_id": t2, "student_id": student_id}).json()["id"]
+    a3 = client.post("/api/assignments/", json={"task_id": t3, "student_id": student_id}).json()["id"]
+
+    # Set statuses directly: a1 -> in_progress, a2 -> pending, a3 -> completed
+    from sqlmodel import Session
+    from app.models.student_task import StudentTask
+    with Session(test_engine) as db:
+        st1 = db.get(StudentTask, a1)
+        st1.status = "in_progress"
+        st2 = db.get(StudentTask, a2)
+        st2.status = "pending"
+        st3 = db.get(StudentTask, a3)
+        st3.status = "completed"
+        db.commit()
+
+    # 4. View /students/{id} as coach
+    page = client.get(f"/students/{student_id}")
+    assert page.status_code == 200
+    pos_in_prog = page.text.find(f'id="assignment-row-{a1}"')
+    pos_pending = page.text.find(f'id="assignment-row-{a2}"')
+    pos_completed = page.text.find(f'id="assignment-row-{a3}"')
+
+    assert pos_in_prog != -1 and pos_pending != -1 and pos_completed != -1
+    assert pos_in_prog < pos_pending < pos_completed
 
 
+def test_profile_progress_bar_only_for_in_progress(client):
+    """Verify that only in-progress tasks show the progress bar and percentage."""
+    # 1. Create coach & student
+    login_as_coach(client)
+    res = client.post("/api/students/", json={
+        "username": "prog_bar_student",
+        "email": "prog_bar_student@test.com",
+        "password": "password123",
+    })
+    student_id = res.json()["id"]
 
+    # 2. Create tasks with 2 problems each
+    t_in_prog = client.post("/api/tasks/", json={
+        "title": "Task In Progress Bar",
+        "task_type": "CF_SHEET",
+        "config": {"problems": ["1A", "1B"]}
+    }).json()["id"]
+    t_pending = client.post("/api/tasks/", json={
+        "title": "Task Pending Bar",
+        "task_type": "CF_SHEET",
+        "config": {"problems": ["2A", "2B"]}
+    }).json()["id"]
+    t_completed = client.post("/api/tasks/", json={
+        "title": "Task Completed Bar",
+        "task_type": "CF_SHEET",
+        "config": {"problems": ["3A", "3B"]}
+    }).json()["id"]
 
+    # 3. Assign tasks
+    a_prog = client.post("/api/assignments/", json={"task_id": t_in_prog, "student_id": student_id}).json()["id"]
+    a_pend = client.post("/api/assignments/", json={"task_id": t_pending, "student_id": student_id}).json()["id"]
+    a_comp = client.post("/api/assignments/", json={"task_id": t_completed, "student_id": student_id}).json()["id"]
 
+    # 4. Set statuses and checker_result:
+    # a_prog: in_progress with 1/2 solved (50%)
+    # a_pend: pending with 0/2 solved
+    # a_comp: completed with 2/2 solved
+    with Session(test_engine) as db:
+        st_prog = db.get(StudentTask, a_prog)
+        st_prog.status = "in_progress"
+        st_prog.checker_result = {"solved_count": 1}
 
+        st_pend = db.get(StudentTask, a_pend)
+        st_pend.status = "pending"
+        st_pend.checker_result = {"solved_count": 0}
 
+        st_comp = db.get(StudentTask, a_comp)
+        st_comp.status = "completed"
+        st_comp.checker_result = {"solved_count": 2}
 
+        db.commit()
 
+    # 5. Fetch student detail page
+    page = client.get(f"/students/{student_id}")
+    assert page.status_code == 200
 
+    pos_prog = page.text.find(f'id="assignment-row-{a_prog}"')
+    pos_pend = page.text.find(f'id="assignment-row-{a_pend}"')
+    pos_comp = page.text.find(f'id="assignment-row-{a_comp}"')
+    assert pos_prog != -1 and pos_pend != -1 and pos_comp != -1
+
+    row_prog_html = page.text[pos_prog:pos_pend]
+    row_pend_html = page.text[pos_pend:pos_comp]
+    row_comp_html = page.text[pos_comp:pos_comp + 1500]
+
+    # In-progress row MUST have the percentage (50%) and the progress bar
+    assert "50%" in row_prog_html
+    assert 'style="width: 50%;"' in row_prog_html
+    assert "Progress" in row_prog_html
+
+    # Pending row MUST NOT have progress bar or percentage bar
+    assert 'style="width:' not in row_pend_html
+    assert "Progress Bar" not in row_pend_html
+
+    # Completed row MUST NOT have progress bar or percentage bar
+    assert 'style="width:' not in row_comp_html
+    assert "Progress Bar" not in row_comp_html
 
