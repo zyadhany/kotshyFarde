@@ -22,7 +22,7 @@ from app.models.student_task import StudentTask
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 
-router = APIRouter(prefix="/users", tags=["Users"], dependencies=[Depends(require_coach)])
+router = APIRouter(prefix="/api/users", tags=["Users"], dependencies=[Depends(require_coach)])
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -69,10 +69,14 @@ def create_user(
 
 @router.get("/", response_model=List[UserRead])
 def list_users(
+    role: Optional[str] = None,
     session: Session = Depends(get_session),
 ) -> List[User]:
-    """Retrieve a list of all users."""
-    users = session.exec(select(User)).all()
+    """Retrieve a list of users, optionally filtered by role."""
+    query = select(User)
+    if role:
+        query = query.where(col(User.role).ilike(role))
+    users = session.exec(query).all()
     return list(users)
 
 

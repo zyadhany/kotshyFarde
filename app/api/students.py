@@ -19,7 +19,7 @@ from app.core.database import get_session
 from app.models.user import User
 from app.schemas.user import UserCreate, UserRead, UserUpdate
 
-router = APIRouter(prefix="/students", tags=["Students"], dependencies=[Depends(require_coach)])
+router = APIRouter(prefix="/api/students", tags=["Students"], dependencies=[Depends(require_coach)])
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -28,6 +28,8 @@ def create_student_endpoint(
     session: Session = Depends(get_session),
 ) -> User:
     """Create a new student (user) with optional platform handles."""
+    if not student_in.role:
+        student_in.role = "student"
     return create_user(user_in=student_in, session=session)
 
 
@@ -35,8 +37,8 @@ def create_student_endpoint(
 def list_students_endpoint(
     session: Session = Depends(get_session),
 ) -> List[User]:
-    """Retrieve a list of all students (users)."""
-    return list_users(session=session)
+    """Retrieve a list of all students."""
+    return list_users(role="student", session=session)
 
 
 @router.get("/{student_id}", response_model=UserRead)

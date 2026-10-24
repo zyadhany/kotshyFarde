@@ -85,7 +85,7 @@ const Kotchy = {
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
 
-        const res = await fetch('/students/', {
+        const res = await fetch('/api/students/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -130,7 +130,7 @@ const Kotchy = {
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
 
-        const res = await fetch(`/users/${studentId}`, {
+        const res = await fetch(`/api/students/${studentId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -163,7 +163,7 @@ const Kotchy = {
       }
 
       try {
-        const res = await fetch(`/users/${studentId}/reset-password`, {
+        const res = await fetch(`/api/students/${studentId}/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -205,7 +205,7 @@ const Kotchy = {
       if (!confirm(`Are you sure you want to remove student "${username}"?`)) return;
 
       try {
-        const res = await fetch(`/students/${studentId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/students/${studentId}`, { method: 'DELETE' });
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.detail || 'Delete failed.');
@@ -264,7 +264,8 @@ const Kotchy = {
           Kotchy.showToast('Please enter a valid numeric Contest ID.', 'warning');
           return;
         }
-        const minSolved = parseInt(form.contest_min_solved.value) || 1;
+        const parsedMinSolved = parseInt(form.contest_min_solved.value, 10);
+        const minSolved = isNaN(parsedMinSolved) ? 1 : Math.max(0, parsedMinSolved);
         const accessType = form.access_type.value || 'public';
         config = { contest_id: contestId, min_solved: minSolved, access_type: accessType };
       }
@@ -280,7 +281,7 @@ const Kotchy = {
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner mr-1.5"></span> Creating...`;
 
-        const res = await fetch('/tasks/', {
+        const res = await fetch('/api/tasks/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -305,7 +306,7 @@ const Kotchy = {
       if (!confirm(`Are you sure you want to delete task "${title}"?`)) return;
 
       try {
-        const res = await fetch(`/tasks/${taskId}`, { method: 'DELETE' });
+        const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.detail || 'Delete failed.');
@@ -313,14 +314,101 @@ const Kotchy = {
 
         Kotchy.showToast(`Task "${title}" deleted.`);
         setTimeout(() => {
-          if (window.location.pathname.includes('/tasks-page/')) {
-            window.location.href = '/tasks-page';
+          if (window.location.pathname.startsWith('/tasks/') || window.location.pathname.includes('/tasks-page/')) {
+            window.location.href = '/tasks';
           } else {
             window.location.reload();
           }
         }, 400);
       } catch (err) {
         Kotchy.showToast(err.message, 'error');
+      }
+    },
+
+    async update(event, taskId) {
+      event.preventDefault();
+      const form = event.target;
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+
+      const taskType = form.task_type.value;
+      const config = {};
+
+      if (taskType === 'CF_CONTEST') {
+        const contestId = parseInt(form.contest_id.value, 10);
+        if (isNaN(contestId) || contestId <= 0) {
+          Kotchy.showToast('Please enter a valid numeric Contest ID.', 'error');
+          return;
+        }
+        config.contest_id = contestId;
+        const parsedMin = parseInt(form.min_solved.value, 10);
+        config.min_solved = isNaN(parsedMin) ? 1 : Math.max(0, parsedMin);
+        config.access_type = form.access_type?.value || 'public';
+      } else if (taskType === 'CF_SHEET') {
+        const rawProblems = form.problems?.value.trim() || '';
+        const problems = rawProblems.split(/[\s,;\n]+/).filter(p => p.length > 0);
+        if (problems.length === 0) {
+          Kotchy.showToast('Please provide at least one problem identifier (e.g. 455A).', 'error');
+          return;
+        }
+        config.problems = problems;
+        config.min_solved_count = parseInt(form.min_solved_count?.value, 10) || problems.length;
+      }
+
+      const payload = {
+        title: form.title.value.trim(),
+        description: form.description.value.trim() || null,
+        task_type: taskType,
+        config: config,
+      };
+
+      try {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner mr-1.5"></span> Saving...`;
+
+        const res = await fetch(`/api/tasks/${taskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to update task.');
+
+        Kotchy.showToast(`Task "${data.title}" updated successfully.`);
+        Kotchy.closeModal('edit-task-modal');
+        setTimeout(() => window.location.reload(), 300);
+      } catch (err) {
+        Kotchy.showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    },
+
+    async checkAll(taskId, btnEl) {
+      if (!btnEl) btnEl = document.querySelector(`[data-recheck-task-id="${taskId}"]`);
+      let originalHtml = '';
+      if (btnEl) {
+        originalHtml = btnEl.innerHTML;
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span class="spinner mr-1.5"></span> Rechecking...`;
+      }
+
+      try {
+        Kotchy.showToast('Running recheck on all enrolled students...', 'info');
+        const res = await fetch(`/api/tasks/${taskId}/check-all`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Recheck failed.');
+
+        Kotchy.showToast(data.message || 'All students rechecked successfully.');
+        setTimeout(() => window.location.reload(), 500);
+      } catch (err) {
+        Kotchy.showToast(err.message, 'error');
+        if (btnEl) {
+          btnEl.disabled = false;
+          btnEl.innerHTML = originalHtml;
+        }
       }
     }
   },
@@ -377,25 +465,23 @@ const Kotchy = {
         btn.disabled = true;
         btn.innerHTML = `<span class="spinner mr-1.5"></span> Assigning ${studentIds.size} student(s)...`;
 
-        let successCount = 0;
-        for (const studentId of studentIds) {
-          const payload = {
-            student_id: studentId,
-            task_id: taskId,
-            start_date: startDate,
-            deadline: deadline,
-          };
+        const payload = {
+          task_id: taskId,
+          student_ids: Array.from(studentIds),
+          start_date: startDate,
+          deadline: deadline,
+        };
 
-          const res = await fetch('/assignments/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
+        const res = await fetch('/api/assignments/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-          if (res.ok) successCount++;
-        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to assign students to task.');
 
-        Kotchy.showToast(`Assigned ${successCount} student(s) to this task.`);
+        Kotchy.showToast(`Assigned ${data.assigned_count} student(s) to this task.`);
         setTimeout(() => window.location.reload(), 500);
       } catch (err) {
         Kotchy.showToast(err.message, 'error');
@@ -415,7 +501,7 @@ const Kotchy = {
       }
 
       try {
-        const res = await fetch(`/assignments/${assignmentId}/check`, { method: 'POST' });
+        const res = await fetch(`/api/assignments/${assignmentId}/check`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'Check failed.');
 
@@ -424,7 +510,10 @@ const Kotchy = {
 
         Kotchy.showToast(`Check finished: ${status} (${solvedCount} solved)`);
 
-        // Inline DOM update if matching elements exist
+        if (window.location.pathname.startsWith('/tasks') || window.location.pathname.startsWith('/students') || window.location.pathname.includes('/my-profile')) {
+          setTimeout(() => window.location.reload(), 450);
+          return;
+        }
         const badgeEl = document.getElementById(`assignment-badge-${assignmentId}`);
         if (badgeEl) {
           if (status === 'completed') {
@@ -453,6 +542,37 @@ const Kotchy = {
           btnEl.disabled = false;
           btnEl.innerHTML = originalHtml;
         }
+      }
+    },
+
+    async deleteAssignment(assignmentId, label = '') {
+      const promptText = label ? `Remove / unenroll assignment for "${label}"?` : 'Are you sure you want to remove this assignment?';
+      if (!confirm(promptText)) return;
+
+      try {
+        const res = await fetch(`/api/assignments/${assignmentId}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to delete assignment.');
+
+        Kotchy.showToast(data.message || 'Assignment deleted successfully.');
+        const row = document.getElementById(`assignment-row-${assignmentId}`);
+        if (row) {
+          row.style.transition = 'all 0.3s ease';
+          row.style.opacity = '0';
+          row.style.transform = 'scale(0.95)';
+          setTimeout(() => {
+            row.remove();
+            if (typeof filterAssignments === 'function') {
+              filterAssignments();
+            } else {
+              window.location.reload();
+            }
+          }, 300);
+        } else {
+          setTimeout(() => window.location.reload(), 400);
+        }
+      } catch (err) {
+        Kotchy.showToast(err.message, 'error');
       }
     }
   },
@@ -497,13 +617,15 @@ const Kotchy = {
 
       if (problemsBtn) {
         problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
+        problemsBtn.setAttribute('aria-selected', 'true');
       }
       if (standingsBtn) {
         standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
+        standingsBtn.setAttribute('aria-selected', 'false');
       }
       try {
         history.replaceState(null, '', '#problems');
-      } catch (e) {}
+      } catch (e) { }
     } else {
       standingsPane.style.setProperty('display', 'block', 'important');
       standingsPane.classList.remove('hidden');
@@ -512,18 +634,130 @@ const Kotchy = {
 
       if (standingsBtn) {
         standingsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-semibold rounded-t-md border-b-2 border-sky-600 text-sky-700 bg-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer';
+        standingsBtn.setAttribute('aria-selected', 'true');
       }
       if (problemsBtn) {
         problemsBtn.className = 'contest-tab-btn px-3.5 py-1.5 text-xs font-medium rounded-t-md border-b-2 border-transparent text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all flex items-center gap-1.5 cursor-pointer';
+        problemsBtn.setAttribute('aria-selected', 'false');
       }
       try {
         history.replaceState(null, '', '#standings');
-      } catch (e) {}
+      } catch (e) { }
     }
+  },
+
+  switchContestStudent(studentId) {
+    const url = new URL(window.location.href);
+    if (studentId) {
+      url.searchParams.set('student_id', studentId);
+    } else {
+      url.searchParams.delete('student_id');
+    }
+    window.location.href = url.toString();
+  },
+
+  // ── Deadline Timer Controller ───────────────────────────────
+  initDeadlineTimers() {
+    const timerEls = document.querySelectorAll('[data-deadline]');
+    if (!timerEls.length) return;
+
+    function formatTimeRemaining(diff) {
+      if (diff <= 0) return null;
+      const seconds = Math.floor((diff / 1000) % 60);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+      if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      }
+      if (hours > 0) {
+        return `${hours}h ${minutes}m ${seconds}s`;
+      }
+      if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+      }
+      return `${seconds}s`;
+    }
+
+    function applyTimerState(el, state) {
+      // states: 'normal', 'warning', 'urgent', 'passed', 'completed'
+      el.classList.remove(
+        'bg-zinc-50', 'border-zinc-200', 'text-zinc-700',
+        'bg-amber-50', 'border-amber-200', 'text-amber-800',
+        'bg-rose-50', 'border-rose-200', 'text-rose-700',
+        'bg-emerald-50', 'border-emerald-200', 'text-emerald-800'
+      );
+      const iconEl = el.querySelector('.timer-icon');
+      if (iconEl) {
+        iconEl.classList.remove(
+          'text-zinc-500', 'text-amber-500', 'text-rose-500', 'text-emerald-500', 'animate-pulse'
+        );
+      }
+
+      if (state === 'completed') {
+        el.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+        if (iconEl) iconEl.classList.add('text-emerald-500');
+      } else if (state === 'passed') {
+        el.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-700');
+        if (iconEl) iconEl.classList.add('text-rose-500');
+      } else if (state === 'urgent') {
+        el.classList.add('bg-rose-50', 'border-rose-200', 'text-rose-700');
+        if (iconEl) iconEl.classList.add('text-rose-500', 'animate-pulse');
+      } else if (state === 'warning') {
+        el.classList.add('bg-amber-50', 'border-amber-200', 'text-amber-800');
+        if (iconEl) iconEl.classList.add('text-amber-500');
+      } else {
+        el.classList.add('bg-zinc-50', 'border-zinc-200', 'text-zinc-700');
+        if (iconEl) iconEl.classList.add('text-zinc-500');
+      }
+    }
+
+    function updateTimers() {
+      const now = Date.now();
+
+      timerEls.forEach(el => {
+        const deadlineStr = el.getAttribute('data-deadline');
+        if (!deadlineStr) return;
+
+        const deadline = new Date(deadlineStr).getTime();
+        if (isNaN(deadline)) return;
+
+        const isCompleted = el.getAttribute('data-completed') === 'true';
+        const diff = deadline - now;
+        const valEl = el.querySelector('.timer-value');
+        const labelEl = el.querySelector('.timer-label');
+
+        if (diff <= 0) {
+          if (labelEl) labelEl.textContent = 'Deadline:';
+          if (valEl) valEl.textContent = 'Passed';
+          applyTimerState(el, isCompleted ? 'completed' : 'passed');
+          return;
+        }
+
+        const formatted = formatTimeRemaining(diff);
+        if (labelEl) labelEl.textContent = 'Time Left:';
+        if (valEl) valEl.textContent = formatted;
+
+        if (isCompleted) {
+          applyTimerState(el, 'completed');
+        } else if (diff < 1000 * 60 * 60) {
+          applyTimerState(el, 'urgent');
+        } else if (diff < 1000 * 60 * 60 * 24) {
+          applyTimerState(el, 'warning');
+        } else {
+          applyTimerState(el, 'normal');
+        }
+      });
+    }
+
+    updateTimers();
+    setInterval(updateTimers, 1000);
   },
 
   // ── Global Initializer ──────────────────────────────────────
   init() {
+    this.initDeadlineTimers();
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         const modals = document.querySelectorAll('.kotchy-modal:not(.hidden)');
@@ -535,6 +769,34 @@ const Kotchy = {
       modal.addEventListener('click', (e) => {
         if (e.target === modal) Kotchy.closeModal(modal.id);
       });
+    });
+
+    // Delegated click listeners for assignment actions
+    document.addEventListener('click', (e) => {
+      const delBtn = e.target.closest('.delete-assignment-btn');
+      if (delBtn) {
+        e.preventDefault();
+        const id = delBtn.getAttribute('data-delete-id');
+        const label = delBtn.getAttribute('data-delete-label') || '';
+        if (id) Kotchy.Assignment.deleteAssignment(parseInt(id, 10), label);
+        return;
+      }
+
+      const checkBtn = e.target.closest('.check-assignment-btn');
+      if (checkBtn) {
+        e.preventDefault();
+        const id = checkBtn.getAttribute('data-check-id');
+        if (id) Kotchy.Assignment.checkAssignment(parseInt(id, 10), checkBtn);
+        return;
+      }
+
+      const recheckBtn = e.target.closest('.recheck-all-btn');
+      if (recheckBtn) {
+        e.preventDefault();
+        const taskId = recheckBtn.getAttribute('data-recheck-task-id');
+        if (taskId) Kotchy.Task.checkAll(parseInt(taskId, 10), recheckBtn);
+        return;
+      }
     });
   }
 };

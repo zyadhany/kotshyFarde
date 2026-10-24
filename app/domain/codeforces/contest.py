@@ -38,7 +38,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         contest_id: int,
         min_solved: int,
         access_type: str = "public",
-        problems: Optional[List[Dict[str, str]]] = None,
+        **kwargs: Any,
     ) -> None:
         if access_type not in _VALID_ACCESS_TYPES:
             raise ValueError(
@@ -48,56 +48,33 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         self.contest_id = contest_id
         self.min_solved = min_solved
         self.access_type = access_type
-        self._problems: Optional[List[Dict[str, str]]] = problems
 
     # ── Problem List & Generation ─────────────────────────────
 
     def generate_problems(self) -> List[Dict[str, str]]:
-        """Fetch and populate the list containing index and name of all contest problems
-        using ``get_contest_problems`` from ``codeforces_api``."""
+        """Fetch the list containing index and name of all contest problems
+        directly from Codeforces service using ``get_contest_problems``."""
         use_auth = self.access_type == "private_managed"
-        self._problems = get_contest_problems(contest_id=self.contest_id, use_auth=use_auth)
-        return self._problems
+        return get_contest_problems(contest_id=self.contest_id, use_auth=use_auth)
 
-    # Alias for generate_problems
+    # Aliases
     fetch_problems = generate_problems
+    get_problems = generate_problems
 
     @property
     def problems(self) -> List[Dict[str, str]]:
-        """List containing index and name of all problems in the contest.
-
-        Getter logic:
-        - If null (None), generates it using codeforces_api.
-        - Otherwise, returns it directly.
-        """
-        if self._problems is None:
-            return self.generate_problems()
-        return self._problems
-
-    @problems.setter
-    def problems(self, value: Optional[List[Dict[str, str]]]) -> None:
-        self._problems = value
-
-    def get_problems(self) -> List[Dict[str, str]]:
-        """Getter for contest problems list.
-
-        If null (None), generates it using codeforces_api; otherwise returns it directly.
-        """
-        if self.problems is None:
-            self.generate_problems()
-        return self.problems
+        """List containing index and name of all problems in the contest,
+        retrieved directly from Codeforces service."""
+        return self.get_problems()
 
     # ── Serialisation ─────────────────────────────────────────
 
     def to_dict(self) -> Dict[str, Any]:
-        data: Dict[str, Any] = {
+        return {
             "contest_id": self.contest_id,
             "min_solved": self.min_solved,
             "access_type": self.access_type,
         }
-        if self._problems is not None:
-            data["problems"] = self._problems
-        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "CodeforcesContestTask":
@@ -105,7 +82,6 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             contest_id=int(data["contest_id"]),
             min_solved=int(data.get("min_solved", 0)),
             access_type=data.get("access_type", "public"),
-            problems=data.get("problems"),
         )
 
     # ── Verification ──────────────────────────────────────────
@@ -144,9 +120,17 @@ class CodeforcesContestTask(CodeforcesBaseTask):
 
         solved_count = status_info.get("solved_count", 0)
         required = self.min_solved
+        if required == 0:
+            try:
+                problems = self.get_problems()
+            except Exception:
+                problems = None
+            required = len(problems) if problems else 0
+            if required == 0:
+                required = status_info.get("total_problems") or len(status_info.get("per_problem") or {})
         after_deadline = status_info.get("after_deadline", False)
 
-        if solved_count >= required:
+        if required > 0 and solved_count >= required:
             status = "late" if after_deadline else "completed"
         elif solved_count > 0:
             status = "in_progress"
@@ -172,103 +156,89 @@ class CodeforcesContestTask(CodeforcesBaseTask):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Generate problems list and standings matrix for CF_CONTEST."""
-        raw_problems = self.problems or []
-        # If problems list not in task config or instance, attempt to fetch using CF API
-        if not raw_problems and self.contest_id:
-            try:
-                raw_problems = self.generate_problems()
-                if raw_problems and task and hasattr(task, "config") and session:
-                    task.config = {**task.config, "problems": raw_problems}
-                    session.add(task)
-                    session.commit()
-                    session.refresh(task)
-            except Exception:
-                pass
-
-        # If still empty, check student checker results for problem keys
-        if not raw_problems:
-            discovered_indices = set()
-            for a in assignments:
-                res = a.checker_result or {}
-                for p_idx in res.get("per_problem", {}).keys():
-                    discovered_indices.add(p_idx)
-                for p_idx in res.get("solved_problems", []):
-                    discovered_indices.add(p_idx)
-            if discovered_indices:
-                raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in sorted(discovered_indices)]
-            else:
-                raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in ["A", "B", "C", "D", "E"]]
-
-        # Determine target user for "solved by user" indicator
+        # 1. Resolve which student's solves to highlight
         active_student_id = target_student_id
-        if active_student_id is None and current_user:
+        if active_student_id is None and current_user and current_user.is_student():
             active_student_id = current_user.id
-
-        # Fallback for coach view when only 1 student is enrolled
-        if active_student_id is None and len(assignments) == 1:
+        elif active_student_id is None and len(assignments) == 1:
             active_student_id = assignments[0].student_id
 
+        # 2. Extract active student's solved and attempted problem indices
         user_solved_indices: set[str] = set()
+        user_attempts_map: Dict[str, int] = {}
         if active_student_id:
-            user_assignment = next(
-                (a for a in assignments if a.student_id == active_student_id), None
-            )
-            if user_assignment:
-                res = user_assignment.checker_result or {}
-                per_prob = res.get("per_problem", {})
-                solved_list = res.get("solved_problems", [])
-                for p_idx, p_data in per_prob.items():
-                    if isinstance(p_data, dict) and p_data.get("solved") is True:
-                        user_solved_indices.add(str(p_idx).upper())
-                for p_idx in solved_list:
-                    user_solved_indices.add(str(p_idx).upper())
+            user_a = next((a for a in assignments if a.student_id == active_student_id), None)
+            if user_a and user_a.checker_result:
+                res = user_a.checker_result
+                user_solved_indices = {str(p).upper() for p in res.get("solved_problems", [])}
+                for p_idx, p_data in res.get("per_problem", {}).items():
+                    idx_upper = str(p_idx).upper()
+                    if isinstance(p_data, dict):
+                        if p_data.get("solved") is True:
+                            user_solved_indices.add(idx_upper)
+                        attempts = p_data.get("attempts", 0)
+                        if attempts > 0:
+                            user_attempts_map[idx_upper] = attempts
 
-        # Normalize problem objects
-        normalized_problems = []
+        # 3. Retrieve or discover problem list
+        raw_problems = self.get_problems() or []
+        if not raw_problems:
+            discovered: set[str] = set()
+            for a in assignments:
+                res = a.checker_result or {}
+                discovered.update(res.get("per_problem", {}).keys())
+                discovered.update(res.get("solved_problems", []))
+            indices = sorted(discovered) if discovered else ["A", "B", "C", "D", "E"]
+            raw_problems = [{"index": idx, "name": f"Problem {idx}"} for idx in indices]
+
+        # 4. Count solves per problem across all assignments
+        total_assigned = len(assignments)
+        solve_counts: Dict[str, int] = {}
+        for a in assignments:
+            res = a.checker_result or {}
+            solved_set = {str(p).upper() for p in res.get("solved_problems", [])}
+            for p_idx, p_data in res.get("per_problem", {}).items():
+                if isinstance(p_data, dict) and p_data.get("solved") is True:
+                    solved_set.add(str(p_idx).upper())
+            for idx in solved_set:
+                solve_counts[idx] = solve_counts.get(idx, 0) + 1
+
+        # 5. Build normalized problem objects with solve statistics
+        contest_problems: List[Dict[str, Any]] = []
         for item in raw_problems:
-            if isinstance(item, dict):
-                idx = str(item.get("index", "")).upper()
-                name = item.get("name") or f"Problem {idx}"
-            else:
-                idx = str(item).upper()
-                name = f"Problem {idx}"
+            idx = str(item.get("index") if isinstance(item, dict) else item).upper()
+            name = (item.get("name") if isinstance(item, dict) else None) or f"Problem {idx}"
             link = f"https://codeforces.com/contest/{self.contest_id}/problem/{idx}" if self.contest_id else "#"
-            normalized_problems.append({
+            solves = solve_counts.get(idx, 0)
+            is_solved = idx in user_solved_indices
+            attempts = user_attempts_map.get(idx, 0)
+            is_attempted_unsolved = (not is_solved) and (attempts > 0)
+
+            contest_problems.append({
                 "index": idx,
                 "name": name,
                 "link": link,
-                "user_solved": idx in user_solved_indices,
+                "user_solved": is_solved,
+                "user_attempted_unsolved": is_attempted_unsolved,
+                "user_wrong_answer": is_attempted_unsolved,
+                "user_attempts": attempts,
+                "solved_count": solves,
+                "total_assigned": total_assigned,
+                "solve_pct": round((solves / total_assigned) * 100) if total_assigned else 0,
             })
 
-        # Calculate solve counts for each problem across all assigned students
-        for p in normalized_problems:
-            p_idx = p["index"]
-            solved_students = 0
-            for a in assignments:
-                res = a.checker_result or {}
-                per_prob = res.get("per_problem", {})
-                solved_list = res.get("solved_problems", [])
-                if per_prob.get(p_idx, {}).get("solved") is True or p_idx in solved_list:
-                    solved_students += 1
-            p["solved_count"] = solved_students
-            p["total_assigned"] = len(assignments)
-            p["solve_pct"] = round((solved_students / len(assignments)) * 100) if assignments else 0
-
-        contest_problems = normalized_problems
-        total_cohort_solves = sum(p["solved_count"] for p in contest_problems)
-
-        # Build Standings rows (Student row with each problem column result)
-        contest_standings = []
+        # 6. Build standings rows for each assigned student
+        contest_standings: List[Dict[str, Any]] = []
         for a in assignments:
             student = student_map.get(a.student_id)
             if not student:
                 continue
-            res = a.checker_result or {}
-            per_prob = res.get("per_problem", {})
-            solved_list = res.get("solved_problems", [])
-            solved_count = res.get("solved_count", len(solved_list) if solved_list else 0)
 
-            # Build cell status for each problem in contest_problems
+            res = a.checker_result or {}
+            per_prob = {str(k).upper(): v for k, v in (res.get("per_problem") or {}).items()}
+            solved_list = {str(p).upper() for p in res.get("solved_problems", [])}
+            solved_count = res.get("solved_count", len(solved_list))
+
             problem_cells = []
             for p in contest_problems:
                 p_idx = p["index"]
@@ -293,7 +263,7 @@ class CodeforcesContestTask(CodeforcesBaseTask):
                 "is_selected_student": bool(active_student_id and active_student_id == student.id),
             })
 
-        # Sort standings: solved_count descending
+        # 7. Sort standings by solved_count descending and assign ranks
         contest_standings.sort(key=lambda r: r["solved_count"], reverse=True)
         for rank, row in enumerate(contest_standings, start=1):
             row["rank"] = rank
@@ -302,7 +272,10 @@ class CodeforcesContestTask(CodeforcesBaseTask):
             "contest_problems": contest_problems,
             "contest_standings": contest_standings,
             "contest_participants": contest_standings,
-            "total_cohort_solves": total_cohort_solves,
+            "total_cohort_solves": sum(p["solved_count"] for p in contest_problems),
             "user_solved_indices": list(user_solved_indices),
+            "user_wrong_answer_indices": [p["index"] for p in contest_problems if p["user_attempted_unsolved"]],
             "selected_student_id": active_student_id,
         }
+
+

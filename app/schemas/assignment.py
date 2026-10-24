@@ -7,7 +7,7 @@ Schemas for StudentTask (Assignment) creation, update, and response serializatio
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -21,14 +21,6 @@ class AssignmentCreate(BaseModel):
     deadline: Optional[datetime] = None
 
 
-class AssignmentUpdate(BaseModel):
-    start_date: Optional[datetime] = None
-    deadline: Optional[datetime] = None
-    status: Optional[str] = None
-    checker_result: Optional[Dict[str, Any]] = None
-    completed_at: Optional[datetime] = None
-
-
 class AssignmentRead(BaseModel):
     id: int
     student_id: int
@@ -40,6 +32,28 @@ class AssignmentRead(BaseModel):
     completed_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class AssignmentBatchCreate(BaseModel):
+    task_id: int
+    student_ids: List[int]
+    start_date: Optional[datetime] = None
+    deadline: Optional[datetime] = None
+
+
+class AssignmentBatchResponse(BaseModel):
+    success: bool
+    assigned_count: int
+    assignments: List[AssignmentRead]
+
+
+class AssignmentUpdate(BaseModel):
+    start_date: Optional[datetime] = None
+    deadline: Optional[datetime] = None
+    status: Optional[str] = None
+    checker_result: Optional[Dict[str, Any]] = None
+    completed_at: Optional[datetime] = None
+
 
 
 class AssignmentWithTaskRead(AssignmentRead):

@@ -60,6 +60,7 @@ app.include_router(assignments.router)
 
 # ── Health Check ──────────────────────────────────────────────
 @app.get("/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
 def health_check() -> dict:
     """Service health probe."""
     return {"status": "ok"}

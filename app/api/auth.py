@@ -33,16 +33,24 @@ templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
 def _resolve_redirect_url(user: User, next_url: Optional[str] = None) -> str:
     """Determine where to send the user after successful authentication."""
-    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
-        # Students shouldn't be redirected to coach-only administrative pages
-        if user.is_student() and (
-            next_url in ("/", "/dashboard", "/students-page", "/tasks-page")
-            or next_url.startswith("/students-page")
-        ):
-            return "/my-profile"
-        return next_url
+    if user.is_coach():
+        if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+            return next_url
+        return "/"
 
-    return "/" if user.is_coach() else "/my-profile"
+    # For students: only redirect to permitted student destinations; default to /my-profile
+    if next_url and next_url.startswith("/") and not next_url.startswith("//"):
+        is_student_page = (
+            next_url == "/my-profile"
+            or next_url.startswith("/tasks/")
+            or next_url.startswith("/tasks-page/")
+            or next_url == f"/students/{user.id}"
+            or next_url == f"/students-page/{user.id}"
+        )
+        if is_student_page:
+            return next_url
+
+    return "/my-profile"
 
 
 # ── GET /login: Render login page ──────────────────────────────

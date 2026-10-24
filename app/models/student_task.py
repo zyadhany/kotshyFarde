@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from sqlalchemy import JSON
+from sqlalchemy import JSON, UniqueConstraint
 from sqlmodel import Column, Field, SQLModel
 
 
@@ -19,6 +19,9 @@ class StudentTask(SQLModel, table=True):
     """Many-to-many association between students and tasks with scheduling metadata."""
 
     __tablename__ = "student_tasks"
+    __table_args__ = (
+        UniqueConstraint("student_id", "task_id", name="uq_student_task"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     student_id: int = Field(foreign_key="users.id", nullable=False, index=True)

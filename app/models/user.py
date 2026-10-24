@@ -53,6 +53,85 @@ class User(SQLModel, table=True):
         """Check if user is a student."""
         return not self.is_coach()
 
+    # ── Codeforces Rating & Rank Helpers ──────────────────────
+    def get_cf_rating(self) -> Optional[int]:
+        """Return the user's cached Codeforces rating."""
+        if not self.cf_handle:
+            return None
+        from app.services.codeforces_api import get_user_rating
+        return get_user_rating(self.cf_handle)
+
+    def get_cf_info(self) -> Optional[dict]:
+        """Return the user's cached Codeforces profile info."""
+        if not self.cf_handle:
+            return None
+        from app.services.codeforces_api import get_user_info
+        return get_user_info(self.cf_handle)
+
+    @property
+    def cf_rating(self) -> Optional[int]:
+        """Return current Codeforces rating."""
+        return self.get_cf_rating()
+
+    @property
+    def cf_max_rating(self) -> Optional[int]:
+        """Return all-time max Codeforces rating."""
+        info = self.get_cf_info()
+        return info.get("maxRating") if info else None
+
+    @property
+    def cf_rank(self) -> str:
+        """Return current Codeforces rank title (e.g. 'Master', 'Pupil')."""
+        info = self.get_cf_info()
+        if info and info.get("rank"):
+            return str(info["rank"]).strip().title()
+        from app.services.codeforces_api import get_rating_title
+        return get_rating_title(self.cf_rating)
+
+    @property
+    def cf_max_rank(self) -> str:
+        """Return all-time max Codeforces rank title."""
+        info = self.get_cf_info()
+        if info and info.get("maxRank"):
+            return str(info["maxRank"]).strip().title()
+        from app.services.codeforces_api import get_rating_title
+        return get_rating_title(self.cf_max_rating or self.cf_rating)
+
+    @property
+    def cf_rating_class(self) -> str:
+        """Return the Codeforces CSS rating class for the user."""
+        from app.services.codeforces_api import get_rating_class
+        return get_rating_class(self.get_cf_rating())
+
+    @property
+    def cf_max_rating_class(self) -> str:
+        """Return the Codeforces CSS rating class for max rating."""
+        from app.services.codeforces_api import get_rating_class
+        return get_rating_class(self.cf_max_rating or self.get_cf_rating())
+
+    @property
+    def cf_rating_color(self) -> str:
+        """Return the Codeforces hex color for the user."""
+        from app.services.codeforces_api import get_rating_color
+        return get_rating_color(self.get_cf_rating())
+
+    @property
+    def cf_max_rating_color(self) -> str:
+        """Return the Codeforces hex color for max rating."""
+        from app.services.codeforces_api import get_rating_color
+        return get_rating_color(self.cf_max_rating or self.get_cf_rating())
+
+    @property
+    def cf_rating_title(self) -> str:
+        """Return the Codeforces rank title for the user."""
+        return self.cf_rank
+
+    @property
+    def is_legendary(self) -> bool:
+        """True if user is Legendary Grandmaster (rating >= 3000)."""
+        r = self.get_cf_rating()
+        return r is not None and r >= 3000
+
     # ── Backwards Compatibility Alias for password_hash ───────
     @property
     def password_hash(self) -> str:

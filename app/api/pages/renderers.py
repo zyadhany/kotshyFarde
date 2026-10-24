@@ -8,7 +8,7 @@ render data for task detail pages from their corresponding domain classes.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlmodel import Session
 
@@ -79,6 +79,7 @@ def get_task_sidebar_data(
     task: Task,
     assignments: List[StudentTask],
     student_map: Dict[int, User],
+    contest_problems: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     """Partition assignments into In Progress and Completed for the sidebar."""
     in_progress_assignments = []
@@ -89,7 +90,19 @@ def get_task_sidebar_data(
             "min_solved_count", len(task.config.get("problems", []))
         )
     else:
-        required_count = task.config.get("min_solved", 1)
+        required_count = task.config.get("min_solved", 0)
+        if required_count == 0:
+            if contest_problems is not None:
+                required_count = len(contest_problems)
+            else:
+                contest_id = task.config.get("contest_id")
+                if contest_id:
+                    try:
+                        from app.domain.codeforces.contest import CodeforcesContestTask
+                        problems = CodeforcesContestTask(contest_id=contest_id).get_problems()
+                        required_count = len(problems) if problems else 0
+                    except Exception:
+                        required_count = 0
 
     for a in assignments:
         student = student_map.get(a.student_id)

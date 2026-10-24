@@ -52,6 +52,20 @@ class Settings:
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))
     DEFAULT_PASSWORD: str = os.getenv("DEFAULT_PASSWORD", "12345678").strip() or "12345678"
 
+    # ── Cache & Lifetimes (seconds) ───────────────────────────
+    DEFAULT_CACHE_LIFETIME: int | None = (
+        int(os.getenv("DEFAULT_CACHE_LIFETIME"))
+        if os.getenv("DEFAULT_CACHE_LIFETIME") and os.getenv("DEFAULT_CACHE_LIFETIME").strip().isdigit()
+        else None
+    )
+    CF_RATING_CACHE_LIFETIME: int = int(os.getenv("CF_RATING_CACHE_LIFETIME", "3600"))
+    CF_SUBMISSIONS_CACHE_LIFETIME: int = int(os.getenv("CF_SUBMISSIONS_CACHE_LIFETIME", "30"))
+    CF_CONTEST_PROBLEMS_CACHE_LIFETIME: int | None = (
+        int(os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME"))
+        if os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME") and os.getenv("CF_CONTEST_PROBLEMS_CACHE_LIFETIME").strip().isdigit()
+        else None
+    )
+
     # ── Debug ─────────────────────────────────────────────────
     DEBUG: bool = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 

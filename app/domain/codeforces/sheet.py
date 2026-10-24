@@ -8,7 +8,8 @@ that a student must solve (at least ``min_solved_count``).
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Tuple
 
 from app.domain.codeforces.base import CodeforcesBaseTask
 from app.models.student_task import StudentTask
@@ -66,6 +67,20 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
         deadline = getattr(student_task, "deadline", None)
         submissions = get_user_submissions(handle)
 
+        # Pre-index accepted submissions into dict for O(1) lookups per problem: O(N + P)
+        ok_by_problem: Dict[Tuple[int, str], List[Dict[str, Any]]] = {}
+        for sub in submissions:
+            if sub.get("verdict") != "OK":
+                continue
+            prob = sub.get("problem", {})
+            cid = prob.get("contestId")
+            idx = prob.get("index")
+            if cid is not None and idx:
+                key = (cid, str(idx).upper())
+                if key not in ok_by_problem:
+                    ok_by_problem[key] = []
+                ok_by_problem[key].append(sub)
+
         solved: List[str] = []
         unsolved: List[str] = []
         solved_after_deadline: List[str] = []
@@ -80,13 +95,31 @@ class CodeforcesSheetTask(CodeforcesBaseTask):
                 problems_map[prob_str] = {"solved": False, "after_deadline": False, "error": str(exc)}
                 continue
 
-            prob_info = get_problem_solve_status(
-                handle=handle,
-                contest_id=contest_id,
-                index=index,
-                deadline=deadline,
-                submissions=submissions,
-            )
+            ok_subs = ok_by_problem.get((contest_id, index.upper()), [])
+            if not ok_subs:
+                prob_info = {
+                    "solved": False,
+                    "after_deadline": False,
+                    "solved_at": None,
+                }
+            else:
+                earliest_sec = min(s.get("creationTimeSeconds", 0) for s in ok_subs)
+                solved_time = datetime.fromtimestamp(earliest_sec, tz=timezone.utc)
+                after_deadline = False
+                if deadline is not None:
+                    d = deadline if deadline.tzinfo is not None else deadline.replace(tzinfo=timezone.utc)
+                    has_ontime_solve = any(
+                        datetime.fromtimestamp(s.get("creationTimeSeconds", 0), tz=timezone.utc) <= d
+                        for s in ok_subs
+                    )
+                    after_deadline = not has_ontime_solve
+
+                prob_info = {
+                    "solved": True,
+                    "after_deadline": after_deadline,
+                    "solved_at": solved_time.isoformat(),
+                }
+
             problems_map[prob_str] = prob_info
 
             if prob_info["solved"]:

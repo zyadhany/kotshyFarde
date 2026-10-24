@@ -10,7 +10,7 @@ Tags: ["Assignments"]
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
@@ -23,13 +23,15 @@ from app.models.student_task import StudentTask
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.assignment import (
+    AssignmentBatchCreate,
+    AssignmentBatchResponse,
     AssignmentCreate,
     AssignmentRead,
     AssignmentWithTaskRead,
 )
 from app.schemas.task import TaskRead
 
-router = APIRouter(prefix="/assignments", tags=["Assignments"])
+router = APIRouter(prefix="/api/assignments", tags=["Assignments"])
 
 
 def _to_with_task_read(assignment: StudentTask, session: Session) -> AssignmentWithTaskRead:
@@ -62,6 +64,12 @@ def assign_task(
             detail=f"Student with ID {assignment_in.student_id} not found.",
         )
 
+    if student.is_coach():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot assign tasks to a coach account.",
+        )
+
     # Verify task exists
     task = session.get(Task, assignment_in.task_id)
     if not task:
@@ -85,6 +93,24 @@ def assign_task(
     elif deadline.tzinfo is None:
         deadline = deadline.replace(tzinfo=timezone.utc)
 
+    # Prevent duplicate assignments: return existing assignment (updating dates if supplied)
+    existing = session.exec(
+        select(StudentTask).where(
+            StudentTask.student_id == assignment_in.student_id,
+            StudentTask.task_id == assignment_in.task_id,
+        )
+    ).first()
+
+    if existing:
+        if assignment_in.deadline is not None:
+            existing.deadline = deadline
+        if assignment_in.start_date is not None:
+            existing.start_date = start_date
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
+
     assignment = StudentTask(
         student_id=assignment_in.student_id,
         task_id=assignment_in.task_id,
@@ -97,6 +123,109 @@ def assign_task(
     session.commit()
     session.refresh(assignment)
     return assignment
+
+
+@router.post("/batch", response_model=AssignmentBatchResponse, status_code=status.HTTP_201_CREATED)
+def assign_task_batch(
+    batch_in: AssignmentBatchCreate,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_coach),
+) -> AssignmentBatchResponse:
+    """Batch assign a task to multiple students atomically in a single transaction (coach only)."""
+    # 1. Verify task exists
+    task = session.get(Task, batch_in.task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Task with ID {batch_in.task_id} not found.",
+        )
+
+    # 2. Resolve default dates
+    start_date = batch_in.start_date
+    if start_date is None:
+        start_date = datetime.now(timezone.utc)
+    elif start_date.tzinfo is None:
+        start_date = start_date.replace(tzinfo=timezone.utc)
+
+    deadline = batch_in.deadline
+    if deadline is None:
+        deadline = settings.DEFAULT_TASK_DEADLINE
+    elif deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+
+    # 3. Deduplicate student IDs while preserving order
+    unique_student_ids = list(dict.fromkeys(batch_in.student_ids))
+
+    assignments: List[StudentTask] = []
+    for sid in unique_student_ids:
+        student = session.get(User, sid)
+        if not student:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Student with ID {sid} not found.",
+            )
+        if student.is_coach():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot assign tasks to a coach account (ID {sid}).",
+            )
+
+        existing = session.exec(
+            select(StudentTask).where(
+                StudentTask.student_id == sid,
+                StudentTask.task_id == batch_in.task_id,
+            )
+        ).first()
+
+        if existing:
+            if batch_in.deadline is not None:
+                existing.deadline = deadline
+            if batch_in.start_date is not None:
+                existing.start_date = start_date
+            session.add(existing)
+            assignments.append(existing)
+        else:
+            assignment = StudentTask(
+                student_id=sid,
+                task_id=batch_in.task_id,
+                start_date=start_date,
+                deadline=deadline,
+                status="pending",
+                checker_result={},
+            )
+            session.add(assignment)
+            assignments.append(assignment)
+
+    session.commit()
+    for a in assignments:
+        session.refresh(a)
+
+    return AssignmentBatchResponse(
+        success=True,
+        assigned_count=len(assignments),
+        assignments=[AssignmentRead.model_validate(a) for a in assignments],
+    )
+
+
+@router.get("/", response_model=List[AssignmentWithTaskRead])
+def list_assignments(
+    student_id: Optional[int] = None,
+    task_id: Optional[int] = None,
+    status: Optional[str] = None,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_coach),
+) -> List[AssignmentWithTaskRead]:
+    """List all student task assignments with optional filtering (coach only)."""
+    query = select(StudentTask)
+    if student_id is not None:
+        query = query.where(StudentTask.student_id == student_id)
+    if task_id is not None:
+        query = query.where(StudentTask.task_id == task_id)
+    if status is not None:
+        query = query.where(StudentTask.status == status)
+
+    assignments = session.exec(query.order_by(StudentTask.deadline.asc(), StudentTask.id.desc())).all()
+    return [_to_with_task_read(a, session) for a in assignments]
 
 
 @router.get("/student/{student_id}", response_model=List[AssignmentWithTaskRead])
@@ -235,3 +364,21 @@ def check_assignment(
     session.refresh(assignment)
 
     return _to_with_task_read(assignment, session)
+
+
+@router.delete("/{assignment_id}", status_code=status.HTTP_200_OK)
+def delete_assignment(
+    assignment_id: int,
+    session: Session = Depends(get_session),
+    current_user: User = Depends(require_coach),
+) -> dict:
+    """Delete a student-task assignment (coach only)."""
+    assignment = session.get(StudentTask, assignment_id)
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Assignment with ID {assignment_id} not found.",
+        )
+    session.delete(assignment)
+    session.commit()
+    return {"success": True, "message": f"Assignment #{assignment_id} deleted successfully."}

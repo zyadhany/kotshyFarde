@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 
+from app.core.cache import cache
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -112,13 +113,278 @@ def _request(
 
 # ── Public API ────────────────────────────────────────────────
 
+def clear_user_ratings_cache() -> None:
+    """Clear the in-memory user ratings and user info caches."""
+    cache["user_ratings"].clear()
+    cache["user_info"].clear()
+
+
+def get_user_info(
+    handle: str,
+    lifetime: Optional[int] = None,
+    use_cache: bool = True,
+) -> Optional[Dict[str, Any]]:
+    """Fetch complete Codeforces user profile (rating, maxRating, rank, maxRank, etc.)
+    and store in cache with lifetime (default: settings.CF_RATING_CACHE_LIFETIME = 1 hour).
+    """
+    if not handle or not handle.strip():
+        return None
+
+    clean_handle = handle.strip()
+    cache_key = clean_handle.lower()
+    effective_lifetime = lifetime if lifetime is not None else settings.CF_RATING_CACHE_LIFETIME
+
+    if use_cache:
+        cached = cache["user_info"].get(cache_key)
+        if cached is not None:
+            return cached if cached else None
+
+    try:
+        result = _request("user.info", {"handles": clean_handle})
+        if not result or not isinstance(result, list):
+            return None
+        user_info = result[0]
+        if use_cache:
+            cache["user_info"].add(cache_key, user_info, lifetime=effective_lifetime)
+            rating = user_info.get("rating")
+            if rating is not None:
+                cache["user_ratings"].add(cache_key, rating, lifetime=effective_lifetime)
+        return user_info
+    except (RuntimeError, httpx.HTTPStatusError) as exc:
+        logger.warning("Failed to fetch user info for %s: %s", handle, exc)
+        if use_cache:
+            cache["user_info"].add(cache_key, {}, lifetime=effective_lifetime)
+        return None
+
+
+def get_user_rating(
+    handle: str,
+    lifetime: Optional[int] = None,
+    use_cache: bool = True,
+) -> Optional[int]:
+    """Fetch Codeforces rating for *handle* and store it in cache.
+
+    Default lifetime is 1 hour (3600 seconds), loaded from ``settings.CF_RATING_CACHE_LIFETIME``.
+    """
+    if not handle or not handle.strip():
+        return None
+
+    clean_handle = handle.strip()
+    cache_key = clean_handle.lower()
+    effective_lifetime = lifetime if lifetime is not None else settings.CF_RATING_CACHE_LIFETIME
+
+    if use_cache:
+        cached = cache["user_ratings"].get(cache_key)
+        if cached is not None:
+            return cached
+
+    info = get_user_info(clean_handle, lifetime=effective_lifetime, use_cache=use_cache)
+    if info and "rating" in info:
+        return info["rating"]
+    return None
+
+
+def prefetch_cf_info(
+    handles: List[str],
+    lifetime: Optional[int] = None,
+    use_cache: bool = True,
+) -> Dict[str, Dict[str, Any]]:
+    """Batch-prefetch Codeforces user info for multiple handles in a single API call."""
+    if not handles:
+        return {}
+
+    effective_lifetime = lifetime if lifetime is not None else settings.CF_RATING_CACHE_LIFETIME
+    results: Dict[str, Dict[str, Any]] = {}
+    missing_handles: List[str] = []
+
+    for h in handles:
+        if not h or not str(h).strip():
+            continue
+        clean = str(h).strip()
+        key = clean.lower()
+        if use_cache:
+            cached = cache["user_info"].get(key)
+            if cached is not None:
+                if cached:
+                    results[key] = cached
+                continue
+        if clean not in missing_handles:
+            missing_handles.append(clean)
+
+    if not missing_handles:
+        return results
+
+    # Codeforces user.info accepts semicolon-separated handles
+    chunk_size = 500
+    for i in range(0, len(missing_handles), chunk_size):
+        chunk = missing_handles[i:i + chunk_size]
+        handles_param = ";".join(chunk)
+        try:
+            api_res = _request("user.info", {"handles": handles_param})
+            if api_res and isinstance(api_res, list):
+                for user_data in api_res:
+                    h_handle = str(user_data.get("handle", "")).strip().lower()
+                    if h_handle:
+                        results[h_handle] = user_data
+                        if use_cache:
+                            cache["user_info"].add(h_handle, user_data, lifetime=effective_lifetime)
+                            rating = user_data.get("rating")
+                            if rating is not None:
+                                cache["user_ratings"].add(h_handle, rating, lifetime=effective_lifetime)
+        except Exception as exc:
+            logger.warning("Failed to batch fetch CF user info: %s", exc)
+            if len(chunk) > 1:
+                # If a combined batch fails (e.g. 1 invalid handle), try individually
+                for single_handle in chunk:
+                    try:
+                        single_res = _request("user.info", {"handles": single_handle})
+                        if single_res and isinstance(single_res, list) and single_res:
+                            u_data = single_res[0]
+                            h_handle = str(u_data.get("handle", "")).strip().lower()
+                            if h_handle:
+                                results[h_handle] = u_data
+                                if use_cache:
+                                    cache["user_info"].add(h_handle, u_data, lifetime=effective_lifetime)
+                                    rating = u_data.get("rating")
+                                    if rating is not None:
+                                        cache["user_ratings"].add(h_handle, rating, lifetime=effective_lifetime)
+                    except Exception:
+                        if use_cache:
+                            cache["user_info"].add(single_handle.lower(), {}, lifetime=effective_lifetime)
+            elif len(chunk) == 1 and use_cache:
+                cache["user_info"].add(chunk[0].lower(), {}, lifetime=effective_lifetime)
+
+    return results
+
+
+def get_rating_class(rating: Any) -> str:
+    """Return the Codeforces CSS color class for a given rating or rank.
+    
+    Pupil: Green (.cf-user-pupil)
+    Specialist: Cyan (.cf-user-specialist)
+    Expert: Blue (.cf-user-expert)
+    """
+    if rating is None or rating == "":
+        return "cf-user-unrated"
+    try:
+        r = int(rating)
+        if r < 1200:
+            return "cf-user-newbie"
+        if r < 1400:
+            return "cf-user-pupil"
+        if r < 1600:
+            return "cf-user-specialist"
+        if r < 1900:
+            return "cf-user-expert"
+        if r < 2100:
+            return "cf-user-candidate-master"
+        if r < 2300:
+            return "cf-user-master"
+        if r < 2400:
+            return "cf-user-master"
+        if r < 2600:
+            return "cf-user-grandmaster"
+        if r < 3000:
+            return "cf-user-grandmaster"
+        return "cf-user-legendary"
+    except (ValueError, TypeError):
+        pass
+
+    rank_str = str(rating).strip().lower()
+    if "legend" in rank_str or "tourist" in rank_str:
+        return "cf-user-legendary"
+    if "grandmaster" in rank_str:
+        return "cf-user-grandmaster"
+    if "candidate" in rank_str:
+        return "cf-user-candidate-master"
+    if "master" in rank_str:
+        return "cf-user-master"
+    if "expert" in rank_str:
+        return "cf-user-expert"
+    if "specialist" in rank_str:
+        return "cf-user-specialist"
+    if "pupil" in rank_str:
+        return "cf-user-pupil"
+    if "newbie" in rank_str:
+        return "cf-user-newbie"
+    return "cf-user-unrated"
+
+
+def get_rating_color(rating: Any) -> str:
+    """Return the Codeforces hex color for a given rating or rank."""
+    if rating is None or rating == "":
+        return "#64748b"  # slate-500
+    try:
+        r = int(rating)
+        if r < 1200:
+            return "#808080"  # Newbie (gray)
+        if r < 1400:
+            return "#008000"  # Pupil (green)
+        if r < 1600:
+            return "#03a89e"  # Specialist (cyan)
+        if r < 1900:
+            return "#0000ff"  # Expert (blue)
+        if r < 2100:
+            return "#aa00aa"  # Candidate Master (purple)
+        if r < 2400:
+            return "#ff8c00"  # Master / IM (orange)
+        return "#ff0000"      # Grandmaster / LGM (red)
+    except (ValueError, TypeError):
+        pass
+
+    rank_str = str(rating).strip().lower()
+    if "grandmaster" in rank_str or "legend" in rank_str or "tourist" in rank_str:
+        return "#ff0000"
+    if "candidate" in rank_str:
+        return "#aa00aa"
+    if "master" in rank_str:
+        return "#ff8c00"
+    if "expert" in rank_str:
+        return "#0000ff"
+    if "specialist" in rank_str:
+        return "#03a89e"
+    if "pupil" in rank_str:
+        return "#008000"
+    if "newbie" in rank_str:
+        return "#808080"
+    return "#64748b"
+
+
+def get_rating_title(rating: Any) -> str:
+    """Return the Codeforces rank title for a given rating or rank."""
+    if rating is None or rating == "":
+        return "Unrated"
+    try:
+        r = int(rating)
+        if r < 1200:
+            return "Newbie"
+        if r < 1400:
+            return "Pupil"
+        if r < 1600:
+            return "Specialist"
+        if r < 1900:
+            return "Expert"
+        if r < 2100:
+            return "Candidate Master"
+        if r < 2300:
+            return "Master"
+        if r < 2400:
+            return "International Master"
+        if r < 2600:
+            return "Grandmaster"
+        if r < 3000:
+            return "International Grandmaster"
+        return "Legendary Grandmaster"
+    except (ValueError, TypeError):
+        pass
+
+    return str(rating).strip().title()
+
+
 def verify_handle(handle: str) -> bool:
     """Return ``True`` if *handle* corresponds to an existing Codeforces user."""
-    try:
-        result = _request("user.info", {"handles": handle})
-        return bool(result)
-    except (RuntimeError, httpx.HTTPStatusError):
-        return False
+    info = get_user_info(handle)
+    return info is not None
 
 
 def parse_problem_id(problem_str: str) -> Tuple[int, str]:
@@ -156,18 +422,40 @@ def standardize_verdict(verdict: str) -> str:
     return mapping.get(verdict, verdict)
 
 
+def clear_user_submissions_cache() -> None:
+    """Clear the in-memory user submissions cache."""
+    cache["user_submissions"].clear()
+
+
 def get_user_submissions(
     handle: str,
     use_auth: bool = False,
+    use_cache: bool = True,
 ) -> List[Dict[str, Any]]:
-    """Return the raw list of submissions for *handle*."""
+    """Return the raw list of submissions for *handle*.
+
+    Caches results in ``cache["user_submissions"]`` for ``settings.CF_SUBMISSIONS_CACHE_LIFETIME``
+    (default: 30 seconds) to prevent hitting Codeforces rate limits during cohort checks.
+    Set ``use_cache=False`` to bypass cache.
+    """
+    cache_key = (handle.strip().lower(), use_auth)
+    if use_cache:
+        cached = cache["user_submissions"].get(cache_key)
+        if cached is not None:
+            return cached
+
     try:
         submissions: List[Dict[str, Any]] = _request(
             "user.status",
             {"handle": handle, "from": "1", "count": "10000"},
             use_auth=use_auth,
         )
-        return submissions or []
+        result = submissions or []
+        if use_cache:
+            cache["user_submissions"].add(
+                cache_key, result, lifetime=settings.CF_SUBMISSIONS_CACHE_LIFETIME
+            )
+        return result
     except (RuntimeError, httpx.HTTPStatusError) as exc:
         logger.warning("Failed to fetch submissions for %s: %s", handle, exc)
         return []
@@ -274,6 +562,11 @@ def get_contest_submissions(
     ]
 
 
+def clear_contest_problems_cache() -> None:
+    """Clear the in-memory contest problems cache."""
+    cache["contest_problems"].clear()
+
+
 def get_contest_problems(
     contest_id: int,
     use_auth: bool = False,
@@ -286,6 +579,11 @@ def get_contest_problems(
         Each element is a dict with ``{"index": <str>, "name": <str>}``,
         e.g. ``[{"index": "A", "name": "Theatre Square"}, ...]``.
     """
+    cache_key = (contest_id, use_auth)
+    cached = cache["contest_problems"].get(cache_key)
+    if cached is not None:
+        return cached
+
     try:
         standings = _request(
             "contest.standings",
@@ -293,10 +591,15 @@ def get_contest_problems(
             use_auth=use_auth,
         )
         raw_problems = standings.get("problems", []) if isinstance(standings, dict) else []
-        return [
+        result = [
             {"index": str(p.get("index", "")), "name": str(p.get("name", ""))}
             for p in raw_problems
         ]
+        if result:
+            cache["contest_problems"].add(
+                cache_key, result, lifetime=settings.CF_CONTEST_PROBLEMS_CACHE_LIFETIME
+            )
+        return result
     except Exception as exc:
         logger.warning("Failed to fetch problems for contest %s: %s", contest_id, exc)
         return []

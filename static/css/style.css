@@ -84,3 +84,72 @@ code, pre, .font-mono {
 .modal-overlay {
   background-color: rgba(24, 24, 27, 0.4);
 }
+
+/* ── Codeforces Rating Styles ─────────────────────────────────── */
+.cf-user-unrated { color: #64748b !important; font-weight: 700 !important; }
+.cf-user-newbie { color: #808080 !important; font-weight: 700 !important; }
+.cf-user-pupil { color: #008000 !important; font-weight: 700 !important; }
+.cf-user-specialist { color: #03a89e !important; font-weight: 700 !important; }
+.cf-user-expert { color: #0000ff !important; font-weight: 700 !important; }
+.cf-user-candidate-master { color: #aa00aa !important; font-weight: 700 !important; }
+.cf-user-master { color: #ff8c00 !important; font-weight: 700 !important; }
+.cf-user-grandmaster { color: #ff0000 !important; font-weight: 700 !important; }
+.cf-user-legendary {
+  color: #ff0000 !important;
+  font-weight: 700 !important;
+  display: inline-block;
+}
+.cf-user-legendary::first-letter,
+.cf-user-legendary .legendary-first-letter {
+  color: #000000 !important;
+}
+
+/* Hover styling: keep distinct rating color and add underline */
+a.cf-user-unrated:hover,
+a.cf-user-newbie:hover,
+a.cf-user-pupil:hover,
+a.cf-user-specialist:hover,
+a.cf-user-expert:hover,
+a.cf-user-candidate-master:hover,
+a.cf-user-master:hover,
+a.cf-user-grandmaster:hover,
+a.cf-user-legendary:hover,
+a:hover .cf-user-unrated,
+a:hover .cf-user-newbie,
+a:hover .cf-user-pupil,
+a:hover .cf-user-specialist,
+a:hover .cf-user-expert,
+a:hover .cf-user-candidate-master,
+a:hover .cf-user-master,
+a:hover .cf-user-grandmaster,
+a:hover .cf-user-legendary {
+  text-decoration: underline !important;
+}
+
+a.cf-user-legendary:hover::first-letter,
+a:hover .cf-user-legendary::first-letter {
+  color: #000000 !important;
+}
+
+/* ── Codeforces Avatar Border & Text by Rating ────────────────── */
+.cf-avatar.cf-user-unrated { border-color: #cbd5e1; color: #64748b; }
+.cf-avatar.cf-user-newbie { border-color: #808080; color: #808080; }
+.cf-avatar.cf-user-pupil { border-color: #008000; color: #008000; }
+.cf-avatar.cf-user-specialist { border-color: #03a89e; color: #03a89e; }
+.cf-avatar.cf-user-expert { border-color: #0000ff; color: #0000ff; }
+.cf-avatar.cf-user-candidate-master { border-color: #aa00aa; color: #aa00aa; }
+.cf-avatar.cf-user-master { border-color: #ff8c00; color: #ff8c00; }
+.cf-avatar.cf-user-grandmaster { border-color: #ff0000; color: #ff0000; }
+.cf-avatar.cf-user-legendary { border-color: #ff0000; color: #ff0000; }
+
+.cf-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background-color: #f8fafc;
+}

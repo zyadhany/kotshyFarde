@@ -20,26 +20,12 @@ logger = logging.getLogger(__name__)
 
 
 def _is_html_request(request: Request) -> bool:
-    """Determine if the incoming request expects an HTML response."""
-    path = request.url.path.rstrip("/")
-    # API endpoints: /api/..., /users, /tasks, /assignments, /students (and their sub-paths)
-    # Note: /tasks-page and /students-page are frontend HTML pages, NOT API endpoints!
-    if (
-        path.startswith("/api/")
-        or path == "/users" or path.startswith("/users/")
-        or path == "/tasks" or path.startswith("/tasks/")
-        or path == "/assignments" or path.startswith("/assignments/")
-        or path == "/students" or path.startswith("/students/")
-    ):
-        return False
+    """Determine if the incoming request expects an HTML response.
 
-    accept = request.headers.get("accept", "").lower()
-    return (
-        "text/html" in accept
-        or path in ("", "/", "/dashboard", "/students-page", "/tasks-page", "/my-profile")
-        or "/students-page/" in path
-        or "/tasks-page/" in path
-    )
+    Any path starting with `/api/` is a REST API request (expects JSON 401).
+    All other application endpoints are browser page views (redirect to /login).
+    """
+    return not request.url.path.startswith("/api/")
 
 
 def get_optional_current_user(

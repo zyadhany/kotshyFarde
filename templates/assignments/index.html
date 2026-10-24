@@ -1,0 +1,647 @@
+{% extends "base.html" %}
+
+{% block title %}Assignments • Kotchy ICPC Tracker{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- ── Header & Action ──────────────────────────────────────── -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-lg font-bold text-slate-900 tracking-tight">Assignments Command Center</h1>
+                <span class="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                    {{ metrics.total_count }} Assigned
+                </span>
+            </div>
+            <p class="text-xs text-slate-500">Global tracking of all cohort task deadlines, solver progress, and verification results</p>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+            <button type="button"
+                    onclick="Kotchy.openModal('assign-modal')"
+                    class="px-3 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                + Assign Task
+            </button>
+        </div>
+    </div>
+
+    <!-- ── 4 Top Metric Cards ────────────────────────────────────── -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <!-- Total Assignments -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">Total Assignments</span>
+                <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-2xl font-bold font-mono text-slate-900">{{ metrics.total_count }}</span>
+                <span class="text-[11px] text-slate-500">across {{ tasks|length }} tasks</span>
+            </div>
+        </div>
+
+        <!-- In Progress -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">In Progress / Pending</span>
+                <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-2xl font-bold font-mono text-sky-700">{{ metrics.in_progress_count }}</span>
+                <span class="text-[11px] text-slate-500">active & ongoing</span>
+            </div>
+        </div>
+
+        <!-- Completed / Verified -->
+        <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium text-slate-500">Completed & Verified</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-2xl font-bold font-mono text-emerald-700">{{ metrics.completed_count }}</span>
+                <span class="text-[11px] font-mono text-emerald-600 font-medium">({{ metrics.completion_rate }}%)</span>
+            </div>
+        </div>
+
+        <!-- Overdue -->
+        <div class="bg-white border {% if metrics.overdue_count > 0 %}border-rose-300 bg-rose-50/20{% else %}border-slate-200{% endif %} rounded-lg p-4 shadow-xs">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-medium {% if metrics.overdue_count > 0 %}text-rose-700 font-semibold{% else %}text-slate-500{% endif %}">Overdue Attention</span>
+                <span class="w-2 h-2 rounded-full {% if metrics.overdue_count > 0 %}bg-rose-500 animate-pulse{% else %}bg-slate-300{% endif %}"></span>
+            </div>
+            <div class="mt-2 flex items-baseline gap-2">
+                <span class="text-2xl font-bold font-mono {% if metrics.overdue_count > 0 %}text-rose-600{% else %}text-slate-400{% endif %}">{{ metrics.overdue_count }}</span>
+                <span class="text-[11px] text-slate-500">deadline passed</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Filter & Search Control Panel ────────────────────────── -->
+    <div class="bg-white border border-slate-200 rounded-lg p-3.5 shadow-xs space-y-3">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <!-- Search Input -->
+            <div class="relative flex-1 max-w-md">
+                <input type="text"
+                       id="assignment-search-input"
+                       oninput="filterAssignments()"
+                       placeholder="Search student, handle, task..."
+                       class="w-full pl-8 pr-8 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-sky-500 focus:bg-white transition-all">
+                <svg class="w-3.5 h-3.5 absolute left-2.5 top-2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <button type="button"
+                        id="clear-search-btn"
+                        onclick="clearSearch()"
+                        class="hidden absolute right-2.5 top-2 text-slate-400 hover:text-slate-600">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Status Filter Tabs -->
+            <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200 overflow-x-auto">
+                <button type="button"
+                        data-status-filter="all"
+                        onclick="setStatusFilter('all')"
+                        class="status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-white text-sky-700 shadow-xs border border-slate-200 font-semibold transition-all">
+                    All ({{ metrics.total_count }})
+                </button>
+                <button type="button"
+                        data-status-filter="overdue"
+                        onclick="setStatusFilter('overdue')"
+                        class="status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all {% if metrics.overdue_count > 0 %}text-rose-600 font-semibold{% endif %}">
+                    Overdue ({{ metrics.overdue_count }})
+                </button>
+                <button type="button"
+                        data-status-filter="in_progress"
+                        onclick="setStatusFilter('in_progress')"
+                        class="status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all">
+                    In Progress ({{ metrics.in_progress_count }})
+                </button>
+                <button type="button"
+                        data-status-filter="completed"
+                        onclick="setStatusFilter('completed')"
+                        class="status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all">
+                    Completed ({{ metrics.completed_count }})
+                </button>
+            </div>
+        </div>
+
+        <!-- Secondary Dropdown Filters -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 text-xs">
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Filter by Task -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-slate-500 font-medium">Task:</span>
+                    <select id="filter-task" onchange="filterAssignments()" class="py-1 px-2 text-xs bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <option value="all">All Tasks ({{ tasks|length }})</option>
+                        {% for t in tasks %}
+                            <option value="{{ t.id }}">{{ t.title }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Filter by Student -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-slate-500 font-medium">Student:</span>
+                    <select id="filter-student" onchange="filterAssignments()" class="py-1 px-2 text-xs bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <option value="all">All Students ({{ students|length }})</option>
+                        {% for s in students %}
+                            <option value="{{ s.id }}">{{ s.username }}{% if s.cf_handle %} ({{ s.cf_handle }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Filter by Task Type -->
+                <div class="flex items-center gap-1.5">
+                    <span class="text-slate-500 font-medium">Type:</span>
+                    <select id="filter-type" onchange="filterAssignments()" class="py-1 px-2 text-xs bg-slate-50 border border-slate-200 rounded text-slate-700 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <option value="all">All Types</option>
+                        <option value="CF_SHEET">CF Sheets</option>
+                        <option value="CF_CONTEST">CF Contests</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="text-[11px] text-slate-500 font-mono">
+                Showing <span id="visible-count" class="font-bold text-slate-800">{{ assignment_items|length }}</span> of {{ assignment_items|length }} assignments
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Assignments Table ────────────────────────────────────── -->
+    <div class="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-xs">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-medium">
+                        <th class="py-2.5 px-4 font-mono w-14">ID</th>
+                        <th class="py-2.5 px-4">Student</th>
+                        <th class="py-2.5 px-4">Task</th>
+                        <th class="py-2.5 px-4">Solve Progress</th>
+                        <th class="py-2.5 px-4">Deadline & Schedule</th>
+                        <th class="py-2.5 px-4">Status</th>
+                        <th class="py-2.5 px-4">Last Checked</th>
+                        <th class="py-2.5 px-4 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="assignments-table-body" class="divide-y divide-slate-100 text-slate-700">
+                    {% for item in assignment_items %}
+                        {% set a = item.assignment %}
+                        {% set s = item.student %}
+                        {% set t = item.task %}
+                        <tr id="assignment-row-{{ a.id }}"
+                            class="assignment-row hover:bg-slate-50/80 transition-colors"
+                            data-assignment-id="{{ a.id }}"
+                            data-student-id="{{ s.id }}"
+                            data-task-id="{{ t.id }}"
+                            data-task-type="{{ t.task_type }}"
+                            data-status="{{ a.status }}"
+                            data-is-overdue="{{ 'true' if item.is_overdue else 'false' }}"
+                            data-is-completed="{{ 'true' if item.is_completed else 'false' }}"
+                            data-search-text="{{ s.username|lower }} {{ s.email|lower }} {{ s.cf_handle|lower if s.cf_handle else '' }} {{ t.title|lower }}">
+                            
+                            <!-- ID -->
+                            <td class="py-2.5 px-4 font-mono text-slate-400">#{{ a.id }}</td>
+
+                            <!-- Student -->
+                            <td class="py-2.5 px-4">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-6 h-6 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-[10px] shrink-0 border border-sky-200 uppercase">
+                                        {{ s.username[:1] }}
+                                    </div>
+                                    <div>
+                                        <a href="/students/{{ s.id }}" class="font-bold hover:underline {{ s.cf_rating_class }}">
+                                            {{ s.username }}
+                                        </a>
+                                        {% if s.cf_handle %}
+                                            <a href="https://codeforces.com/profile/{{ s.cf_handle }}" target="_blank"
+                                               class="block text-[11px] font-mono hover:underline font-bold truncate max-w-[140px] {{ s.cf_rating_class }}">
+                                                CF: {{ s.cf_handle }} ↗
+                                            </a>
+                                        {% else %}
+                                            <span class="block text-[10px] text-slate-400 italic">No CF handle</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Task -->
+                            <td class="py-2.5 px-4">
+                                <div class="space-y-0.5">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-medium border
+                                            {% if t.task_type == 'CF_SHEET' %}bg-sky-50 text-sky-700 border-sky-200
+                                            {% else %}bg-purple-50 text-purple-700 border-purple-200{% endif %}">
+                                            {{ "Sheet" if t.task_type == "CF_SHEET" else "Contest" }}
+                                        </span>
+                                        <a href="/tasks/{{ t.id }}?student_id={{ s.id }}" class="font-medium text-slate-900 hover:text-sky-700 hover:underline truncate max-w-[180px] block">
+                                            {{ t.title }}
+                                        </a>
+                                    </div>
+                                    <span class="text-[11px] font-mono text-slate-500 block">
+                                        {% if t.task_type == 'CF_SHEET' %}
+                                            Min {{ item.required_count }} of {{ item.problem_count }} problems
+                                        {% else %}
+                                            Contest #{{ t.config.get('contest_id', '—') }} (min {{ item.required_count }})
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Progress -->
+                            <td class="py-2.5 px-4">
+                                <div class="w-36 space-y-1">
+                                    <div class="flex items-center justify-between font-mono text-[11px]">
+                                        <span id="assignment-solved-{{ a.id }}" class="font-semibold text-slate-800">
+                                            {{ item.solved_count }} / {{ item.required_count }}
+                                        </span>
+                                        <span class="text-slate-500">{{ item.progress_pct }}%</span>
+                                    </div>
+                                    <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                                        <div class="progress-bar-fill h-full rounded-full transition-all duration-300 {% if item.is_completed %}bg-emerald-500{% elif item.is_overdue %}bg-rose-500{% else %}bg-sky-500{% endif %}"
+                                             data-progress="{{ item.progress_pct }}"></div>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Deadline & Urgency -->
+                            <td class="py-2.5 px-4 font-mono">
+                                <div class="space-y-0.5">
+                                    <span class="text-slate-800 font-medium block">{{ item.deadline_formatted }}</span>
+                                    {% if item.schedule_badge %}
+                                        <span class="inline-block px-1.5 py-0.2 rounded text-[10px] border font-sans font-medium {{ item.schedule_badge_class }}">
+                                            {{ item.schedule_badge }}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Status Badge -->
+                            <td class="py-2.5 px-4">
+                                <span id="assignment-badge-{{ a.id }}" class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium border
+                                    {% if item.is_overdue %}bg-rose-50 text-rose-700 border-rose-200
+                                    {% elif a.status == 'completed' %}bg-emerald-50 text-emerald-700 border-emerald-200
+                                    {% elif a.status == 'late' %}bg-amber-50 text-amber-700 border-amber-200
+                                    {% elif a.status == 'in_progress' %}bg-sky-50 text-sky-700 border-sky-200
+                                    {% else %}bg-slate-100 text-slate-700 border-slate-200{% endif %}">
+                                    <span class="w-1.5 h-1.5 rounded-full
+                                        {% if item.is_overdue %}bg-rose-500
+                                        {% elif a.status == 'completed' %}bg-emerald-500
+                                        {% elif a.status == 'late' %}bg-amber-500
+                                        {% elif a.status == 'in_progress' %}bg-sky-500
+                                        {% else %}bg-slate-400{% endif %}"></span>
+                                    {{ "Overdue" if item.is_overdue else (a.status|capitalize) }}
+                                </span>
+                            </td>
+
+                            <!-- Last Checked -->
+                            <td class="py-2.5 px-4 font-mono text-[11px] text-slate-500">
+                                {% if item.last_checked %}
+                                    <span class="flex items-center gap-1 text-slate-600">
+                                        <svg class="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                        {{ item.last_checked }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-slate-400 italic">Never checked</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions -->
+                            <td class="py-2.5 px-4 text-right">
+                                <div class="flex items-center justify-end gap-1.5">
+                                    <!-- Run Check Button -->
+                                    <button type="button"
+                                            data-check-id="{{ a.id }}"
+                                            title="Run real-time Codeforces evaluation"
+                                            class="check-assignment-btn p-1.5 text-xs font-medium rounded border border-slate-200 bg-white text-slate-700 hover:text-sky-700 hover:bg-sky-50 hover:border-sky-200 transition-colors shadow-2xs">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                    </button>
+
+                                    <!-- View Task Detail for Student -->
+                                    <a href="/tasks/{{ t.id }}?student_id={{ s.id }}"
+                                       title="View Task Standings"
+                                       class="p-1.5 text-xs font-medium rounded border border-slate-200 bg-white text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                        </svg>
+                                    </a>
+
+                                    <!-- Delete Assignment -->
+                                    <button type="button"
+                                            data-delete-id="{{ a.id }}"
+                                            data-delete-label="{{ s.username }} on {{ t.title }}"
+                                            title="Unassign task"
+                                            class="delete-assignment-btn p-1.5 text-xs font-medium rounded border border-transparent text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr id="empty-table-row">
+                            <td colspan="8" class="py-12 text-center text-slate-400 text-xs">
+                                <div class="max-w-xs mx-auto space-y-2">
+                                    <p class="font-medium text-slate-600">No task assignments found</p>
+                                    <p class="text-slate-400 text-[11px]">Click "+ Assign Task" above to assign problem sheets or contests to students.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    
+                    <!-- Search No Results Row -->
+                    <tr id="no-results-row" class="hidden">
+                        <td colspan="8" class="py-12 text-center text-slate-400 text-xs">
+                            <div class="max-w-xs mx-auto space-y-2">
+                                <p class="font-medium text-slate-600">No matching assignments</p>
+                                <p class="text-slate-400 text-[11px]">Try adjusting your search query or filter options.</p>
+                                <button type="button" onclick="resetAllFilters()" class="px-2.5 py-1 text-xs font-medium rounded bg-slate-100 text-slate-700 hover:bg-slate-200">
+                                    Reset Filters
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- ── Quick Assign Modal ────────────────────────────────────────── -->
+<div id="assign-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs hidden p-4">
+    <div class="bg-white border border-slate-200 rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+            <div>
+                <h3 class="text-sm font-bold text-slate-900">Assign Task to Student(s)</h3>
+                <p class="text-xs text-slate-500">Atomic batch assignment with synchronized deadline</p>
+            </div>
+            <button type="button" onclick="Kotchy.closeModal('assign-modal')" class="text-slate-400 hover:text-slate-600 text-base leading-none">✕</button>
+        </div>
+
+        <form id="global-assign-form" onsubmit="submitGlobalAssign(event)" class="p-5 space-y-4">
+            <!-- Select Task -->
+            <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">Select Task <span class="text-rose-500">*</span></label>
+                <select name="task_id" required class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    <option value="">-- Choose a Task --</option>
+                    {% for t in tasks %}
+                        <option value="{{ t.id }}">[{{ t.task_type }}] {{ t.title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Student Selection -->
+            <div>
+                <div class="flex items-center justify-between mb-1.5">
+                    <label class="block text-xs font-medium text-slate-700">Select Students <span class="text-rose-500">*</span></label>
+                    <button type="button" onclick="toggleAllModalStudents(this)" class="text-[11px] text-sky-600 hover:underline font-medium">
+                        Select All
+                    </button>
+                </div>
+                
+                <div class="border border-slate-200 rounded-md p-2 max-h-40 overflow-y-auto space-y-1 bg-slate-50/40">
+                    {% for s in students %}
+                        <label class="flex items-center gap-2 p-1 rounded hover:bg-slate-100 cursor-pointer text-xs">
+                            <input type="checkbox" name="modal_student_ids" value="{{ s.id }}" class="modal-student-checkbox rounded text-sky-600 focus:ring-0">
+                            <span class="font-bold {{ s.cf_rating_class }}">{{ s.username }}</span>
+                            {% if s.cf_handle %}
+                                <span class="text-[11px] font-mono font-bold {{ s.cf_rating_class }}">({{ s.cf_handle }})</span>
+                            {% endif %}
+                        </label>
+                    {% else %}
+                        <p class="text-xs text-slate-400 py-2 text-center">No students available.</p>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Schedule Dates -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Start Date (Optional)</label>
+                    <input type="datetime-local" name="start_date" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Deadline (Optional)</label>
+                    <input type="datetime-local" name="deadline" class="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button type="button" onclick="Kotchy.closeModal('assign-modal')" class="px-3 py-1.5 text-xs font-medium rounded-md text-slate-700 hover:bg-slate-100 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit" class="px-4 py-1.5 text-xs font-medium rounded-md bg-sky-600 text-white hover:bg-sky-700 shadow-xs shadow-sky-600/20 transition-colors flex items-center gap-1.5">
+                    Assign Task
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentStatusFilter = 'all';
+
+function setStatusFilter(status) {
+    currentStatusFilter = status;
+    const buttons = document.querySelectorAll('.status-tab-btn');
+    buttons.forEach(btn => {
+        if (btn.getAttribute('data-status-filter') === status) {
+            btn.className = 'status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md bg-white text-sky-700 shadow-xs border border-slate-200 font-semibold transition-all';
+        } else {
+            btn.className = 'status-tab-btn px-2.5 py-1 text-xs font-medium rounded-md text-slate-600 hover:text-slate-900 hover:bg-white/60 transition-all';
+        }
+    });
+    filterAssignments();
+}
+
+function clearSearch() {
+    const input = document.getElementById('assignment-search-input');
+    if (input) input.value = '';
+    document.getElementById('clear-search-btn')?.classList.add('hidden');
+    filterAssignments();
+}
+
+function resetAllFilters() {
+    const searchInput = document.getElementById('assignment-search-input');
+    if (searchInput) searchInput.value = '';
+    document.getElementById('clear-search-btn')?.classList.add('hidden');
+    
+    const taskSelect = document.getElementById('filter-task');
+    if (taskSelect) taskSelect.value = 'all';
+    
+    const studentSelect = document.getElementById('filter-student');
+    if (studentSelect) studentSelect.value = 'all';
+    
+    const typeSelect = document.getElementById('filter-type');
+    if (typeSelect) typeSelect.value = 'all';
+    
+    setStatusFilter('all');
+}
+
+function filterAssignments() {
+    const searchInput = document.getElementById('assignment-search-input');
+    const query = (searchInput?.value || '').trim().toLowerCase();
+    
+    const clearBtn = document.getElementById('clear-search-btn');
+    if (clearBtn) {
+        if (query) clearBtn.classList.remove('hidden');
+        else clearBtn.classList.add('hidden');
+    }
+
+    const taskFilter = document.getElementById('filter-task')?.value || 'all';
+    const studentFilter = document.getElementById('filter-student')?.value || 'all';
+    const typeFilter = document.getElementById('filter-type')?.value || 'all';
+
+    const rows = document.querySelectorAll('.assignment-row');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+        const searchText = row.getAttribute('data-search-text') || '';
+        const rowTaskId = row.getAttribute('data-task-id');
+        const rowStudentId = row.getAttribute('data-student-id');
+        const rowTaskType = row.getAttribute('data-task-type');
+        const isOverdue = row.getAttribute('data-is-overdue') === 'true';
+        const isCompleted = row.getAttribute('data-is-completed') === 'true';
+
+        // 1. Text Search Filter
+        const matchesQuery = !query || searchText.includes(query);
+
+        // 2. Status Filter
+        let matchesStatus = true;
+        if (currentStatusFilter === 'overdue') {
+            matchesStatus = isOverdue;
+        } else if (currentStatusFilter === 'completed') {
+            matchesStatus = isCompleted;
+        } else if (currentStatusFilter === 'in_progress') {
+            matchesStatus = !isCompleted && !isOverdue;
+        }
+
+        // 3. Dropdowns
+        const matchesTask = (taskFilter === 'all') || (rowTaskId === taskFilter);
+        const matchesStudent = (studentFilter === 'all') || (rowStudentId === studentFilter);
+        const matchesType = (typeFilter === 'all') || (rowTaskType === typeFilter);
+
+        if (matchesQuery && matchesStatus && matchesTask && matchesStudent && matchesType) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    // Update visible counter
+    const counter = document.getElementById('visible-count');
+    if (counter) counter.textContent = visibleCount;
+
+    // Show/hide "No results" message
+    const noResultsRow = document.getElementById('no-results-row');
+    if (noResultsRow) {
+        if (visibleCount === 0 && rows.length > 0) {
+            noResultsRow.classList.remove('hidden');
+        } else {
+            noResultsRow.classList.add('hidden');
+        }
+    }
+}
+
+function toggleAllModalStudents(btn) {
+    const checkboxes = document.querySelectorAll('.modal-student-checkbox');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => { cb.checked = !allChecked; });
+    btn.textContent = allChecked ? 'Select All' : 'Deselect All';
+}
+
+async function submitGlobalAssign(event) {
+    event.preventDefault();
+    const form = event.target;
+    const btn = form.querySelector('button[type="submit"]');
+    const originalText = btn.innerHTML;
+
+    const taskId = parseInt(form.task_id.value);
+    const checkedBoxes = Array.from(form.querySelectorAll('.modal-student-checkbox:checked'));
+    const studentIds = checkedBoxes.map(cb => parseInt(cb.value));
+
+    if (!taskId) {
+        Kotchy.showToast('Please select a task.', 'warning');
+        return;
+    }
+
+    if (studentIds.length === 0) {
+        Kotchy.showToast('Please select at least one student.', 'warning');
+        return;
+    }
+
+    const startDate = form.start_date.value ? new Date(form.start_date.value).toISOString() : null;
+    const deadline = form.deadline.value ? new Date(form.deadline.value).toISOString() : null;
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = `<span class="spinner mr-1.5"></span> Assigning ${studentIds.length} student(s)...`;
+
+        const payload = {
+            task_id: taskId,
+            student_ids: studentIds,
+            start_date: startDate,
+            deadline: deadline,
+        };
+
+        const res = await fetch('/api/assignments/batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to assign students.');
+
+        Kotchy.showToast(`Assigned ${data.assigned_count} student(s) successfully.`);
+        Kotchy.closeModal('assign-modal');
+        setTimeout(() => window.location.reload(), 400);
+    } catch (err) {
+        Kotchy.showToast(err.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+// Initialize progress bar widths
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.progress-bar-fill').forEach(bar => {
+        const pct = bar.getAttribute('data-progress');
+        if (pct) bar.style.width = pct + '%';
+    });
+});
+
+// Event delegation for action buttons
+document.addEventListener('click', (e) => {
+    const checkBtn = e.target.closest('.check-assignment-btn');
+    if (checkBtn) {
+        const id = checkBtn.getAttribute('data-check-id');
+        Kotchy.Assignment.checkAssignment(parseInt(id), checkBtn);
+        return;
+    }
+
+    const delBtn = e.target.closest('.delete-assignment-btn');
+    if (delBtn) {
+        const id = delBtn.getAttribute('data-delete-id');
+        const label = delBtn.getAttribute('data-delete-label') || '';
+        Kotchy.Assignment.deleteAssignment(parseInt(id), label);
+        return;
+    }
+});
+</script>
+{% endblock %}

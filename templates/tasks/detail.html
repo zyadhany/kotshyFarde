@@ -8,7 +8,7 @@
     <!-- ── Back Link ───────────────────────────────────────────── -->
     <div>
         {% if current_user and current_user.is_coach() %}
-        <a href="/tasks-page" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
+        <a href="/tasks" class="text-xs text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 font-medium">
             ← Back to Tasks Archive
         </a>
         {% else %}
@@ -29,7 +29,7 @@
                 <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-900 mb-1">Assign to Students</h3>
                 <p class="text-[11px] text-zinc-500 mb-3">Select checkboxes or enter comma-separated handles</p>
 
-                <form onsubmit="Kotchy.Assignment.submitBatchAssign(event, {{ task.id }})" class="space-y-3">
+                <form id="assign-students-form" data-task-id="{{ task.id }}" class="space-y-3">
                     <!-- Comma-separated usernames input -->
                     <div>
                         <label class="block text-[11px] font-medium text-zinc-700 mb-1">Usernames / Handles</label>
@@ -41,20 +41,27 @@
                     <div>
                         <div class="flex items-center justify-between text-[11px] font-medium text-zinc-700 mb-1">
                             <span>Or Select Cohort Members:</span>
+                            {% if unassigned_students %}
                             <label class="cursor-pointer text-zinc-500 hover:text-zinc-900 flex items-center gap-1">
                                 <input type="checkbox" onchange="Kotchy.Assignment.toggleSelectAllStudents(this)" class="rounded border-zinc-300 text-zinc-900 focus:ring-0">
                                 <span>Select All</span>
                             </label>
+                            {% endif %}
                         </div>
                         <div class="max-h-36 overflow-y-auto border border-zinc-200 rounded p-2 bg-zinc-50/60 divide-y divide-zinc-100 text-xs">
-                            {% for s in all_students %}
+                            {% for s in unassigned_students %}
                                 <label class="flex items-center justify-between py-1 px-1 cursor-pointer hover:bg-zinc-100/60 rounded">
-                                    <span class="font-mono text-zinc-800">{{ s.username }} {% if s.cf_handle %}<span class="text-zinc-400">({{ s.cf_handle }})</span>{% endif %}</span>
-                                    <input type="checkbox" value="{{ s.id }}" class="student-assign-checkbox rounded border-zinc-300 text-zinc-900 focus:ring-0"
-                                           {% if s.id in already_assigned_student_ids %}disabled title="Already assigned"{% endif %}>
-                                 </label>
+                                    <span class="font-mono font-bold {{ s.cf_rating_class }}">{{ s.username }} {% if s.cf_handle %}<span class="text-zinc-400 font-normal">({{ s.cf_handle }})</span>{% endif %}</span>
+                                    <input type="checkbox" value="{{ s.id }}" class="student-assign-checkbox rounded border-zinc-300 text-zinc-900 focus:ring-0">
+                                </label>
                             {% else %}
-                                <span class="text-zinc-400 italic text-[11px]">No students available</span>
+                                <div class="text-zinc-400 italic text-[11px] py-2 text-center">
+                                    {% if all_students %}
+                                        All cohort students are already enrolled
+                                    {% else %}
+                                        No students available
+                                    {% endif %}
+                                </div>
                             {% endfor %}
                         </div>
                     </div>
@@ -100,18 +107,19 @@
                         {% for item in in_progress_assignments %}
                             {% set a = item.assignment %}
                             {% set s = item.student %}
-                            <div class="p-2 rounded border border-zinc-200 bg-white hover:bg-zinc-50 flex items-center justify-between gap-2 text-xs">
+                            {% set is_me = (current_user and current_user.id == s.id) %}
+                            <div id="assignment-row-{{ a.id }}" class="p-2 rounded border flex items-center justify-between gap-2 text-xs transition-colors {% if is_me %}border-sky-300 bg-sky-50/70 shadow-xs ring-1 ring-sky-200/60{% else %}border-zinc-200 bg-white hover:bg-zinc-50{% endif %}">
                                 <div class="min-w-0">
                                     {% if current_user and current_user.is_coach() %}
-                                    <a href="/students-page/{{ s.id }}" class="font-semibold text-zinc-900 hover:underline block truncate">
+                                    <a href="/students/{{ s.id }}" class="font-bold hover:underline block truncate {{ s.cf_rating_class }}">
                                         {{ s.username }}
                                     </a>
-                                    {% elif current_user.id == s.id %}
-                                    <a href="/my-profile" class="font-semibold text-zinc-900 hover:underline block truncate">
-                                        {{ s.username }} (You)
+                                    {% elif is_me %}
+                                    <a href="/my-profile" class="font-bold hover:underline block truncate {{ s.cf_rating_class }}">
+                                        {{ s.username }}
                                     </a>
                                     {% else %}
-                                    <span class="font-semibold text-zinc-900 block truncate">
+                                    <span class="font-bold block truncate {{ s.cf_rating_class }}">
                                         {{ s.username }}
                                     </span>
                                     {% endif %}
@@ -120,12 +128,24 @@
                                     </span>
                                 </div>
                                 <div class="flex items-center gap-1.5 flex-shrink-0">
-                                    {% if current_user and (current_user.is_coach() or current_user.id == a.student_id) %}
+                                    {% if current_user and current_user.is_coach() %}
                                     <button type="button" 
                                             data-check-id="{{ a.id }}"
-                                            onclick="Kotchy.Assignment.checkAssignment({{ a.id }}, this)"
-                                            class="px-2 py-0.5 text-[11px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-100 transition-colors">
+                                            class="check-assignment-btn px-2 py-0.5 text-[11px] font-medium rounded border border-zinc-200 text-zinc-700 hover:bg-zinc-100 transition-colors">
                                         Check
+                                    </button>
+                                    {% endif %}
+
+                                    {% if current_user and current_user.is_coach() %}
+                                    <button type="button" 
+                                            data-delete-id="{{ a.id }}"
+                                            data-delete-label="{{ s.username }}"
+                                            title="Unenroll {{ s.username }} from task"
+                                            aria-label="Unenroll {{ s.username }}"
+                                            class="delete-assignment-btn p-1 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors inline-flex items-center justify-center">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
                                     </button>
                                     {% endif %}
                                 </div>
@@ -149,18 +169,19 @@
                         {% for item in completed_assignments %}
                             {% set a = item.assignment %}
                             {% set s = item.student %}
-                            <div class="p-2 rounded border border-zinc-200 bg-white text-zinc-500 flex items-center justify-between gap-2 text-xs">
+                            {% set is_me = (current_user and current_user.id == s.id) %}
+                            <div id="assignment-row-{{ a.id }}" class="p-2 rounded border flex items-center justify-between gap-2 text-xs transition-colors {% if is_me %}border-sky-300 bg-sky-50/70 shadow-xs ring-1 ring-sky-200/60 text-zinc-700{% else %}border-zinc-200 bg-white text-zinc-500 hover:bg-zinc-50{% endif %}">
                                 <div class="min-w-0">
                                     {% if current_user and current_user.is_coach() %}
-                                    <a href="/students-page/{{ s.id }}" class="font-medium text-zinc-800 hover:underline block truncate">
+                                    <a href="/students/{{ s.id }}" class="font-bold hover:underline block truncate {{ s.cf_rating_class }}">
                                         {{ s.username }}
                                     </a>
-                                    {% elif current_user.id == s.id %}
-                                    <a href="/my-profile" class="font-medium text-zinc-800 hover:underline block truncate">
-                                        {{ s.username }} (You)
+                                    {% elif is_me %}
+                                    <a href="/my-profile" class="font-bold hover:underline block truncate {{ s.cf_rating_class }}">
+                                        {{ s.username }}
                                     </a>
                                     {% else %}
-                                    <span class="font-medium text-zinc-800 block truncate">
+                                    <span class="font-bold block truncate {{ s.cf_rating_class }}">
                                         {{ s.username }}
                                     </span>
                                     {% endif %}
@@ -168,7 +189,21 @@
                                         {{ item.solved_count }}/{{ item.required_count }} Solved
                                     </span>
                                 </div>
-                                <span class="text-emerald-700 text-xs font-mono font-medium">✓ Done</span>
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    <span class="text-emerald-700 text-xs font-mono font-medium">✓ Done</span>
+                                    {% if current_user and current_user.is_coach() %}
+                                    <button type="button" 
+                                            data-delete-id="{{ a.id }}"
+                                            data-delete-label="{{ s.username }}"
+                                            title="Unenroll {{ s.username }} from task"
+                                            aria-label="Unenroll {{ s.username }}"
+                                            class="delete-assignment-btn p-1 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors inline-flex items-center justify-center">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </div>
                         {% else %}
                             <p class="text-[11px] text-zinc-400 italic py-1">No completed submissions yet.</p>
@@ -198,31 +233,181 @@
                     </div>
 
                     {% if current_user and current_user.is_coach() %}
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        {% if assigned_students|length > 0 %}
                         <button type="button" 
-                                onclick="Kotchy.Task.delete({{ task.id }}, '{{ task.title }}')"
-                                class="px-2.5 py-1 text-xs font-medium rounded text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors">
-                            Delete
+                                data-recheck-task-id="{{ task.id }}"
+                                title="Recheck all enrolled students"
+                                class="recheck-all-btn px-2.5 py-1 text-xs font-medium rounded bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors inline-flex items-center gap-1.5 shadow-2xs">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Recheck All</span>
                         </button>
+                        {% endif %}
+
+                        <button type="button" 
+                                onclick="Kotchy.openModal('edit-task-modal')"
+                                title="Edit task details and configuration"
+                                class="px-2.5 py-1 text-xs font-medium rounded text-zinc-700 bg-white hover:bg-zinc-50 border border-zinc-300 transition-colors inline-flex items-center gap-1.5 shadow-2xs">
+                            <svg class="w-3.5 h-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                            <span>Edit</span>
+                        </button>
+
+                        <button type="button" 
+                                data-task-id="{{ task.id }}"
+                                data-task-title="{{ task.title }}"
+                                class="delete-task-btn px-2.5 py-1 text-xs font-medium rounded text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors inline-flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                            <span>Delete</span>
+                        </button>
+                    </div>
+                    {% elif current_user and current_user.is_student() and my_assignment_data %}
+                    <!-- Student Check Action, Completion Progress Bar & Deadline Countdown Timer -->
+                    <div class="flex flex-col sm:items-end gap-2.5 flex-shrink-0">
+                        <div class="flex items-center gap-2 flex-wrap justify-start sm:justify-end">
+                            {% if my_assignment_data.deadline_iso %}
+                            <!-- Deadline Countdown Timer -->
+                            <div id="student-deadline-timer"
+                                 data-deadline="{{ my_assignment_data.deadline_iso }}"
+                                 data-completed="{{ 'true' if my_assignment_data.assignment.status == 'completed' else 'false' }}"
+                                 title="Deadline: {{ my_assignment_data.assignment.deadline.strftime('%Y-%m-%d %H:%M UTC') if my_assignment_data.assignment.deadline else '' }}"
+                                 class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono font-medium border bg-zinc-50 text-zinc-700 border-zinc-200 shadow-2xs transition-colors">
+                                <svg class="w-3.5 h-3.5 text-zinc-500 timer-icon transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="timer-label text-zinc-500 text-[11px] font-sans">Time Left:</span>
+                                <span class="timer-value font-bold text-zinc-900 font-mono tracking-tight">--:--:--</span>
+                            </div>
+                            {% endif %}
+
+                            <button type="button" 
+                                    data-check-id="{{ my_assignment_data.assignment.id }}"
+                                    title="Recheck submissions on Codeforces"
+                                    class="check-assignment-btn px-3 py-1.5 text-xs font-semibold rounded-md bg-sky-600 hover:bg-sky-700 text-white shadow-xs shadow-sky-600/20 transition-all inline-flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                <span>Recheck Submissions</span>
+                            </button>
+                        </div>
+
+                        <div class="w-full sm:w-64 space-y-1">
+                            <div class="flex items-center justify-between font-mono text-xs">
+                                <span class="font-bold {% if my_assignment_data.progress_pct >= 100 %}text-emerald-700{% else %}text-zinc-800{% endif %}">
+                                    {{ my_assignment_data.progress_pct }}% Completed
+                                </span>
+                                <span class="text-zinc-500 font-medium text-[11px]">
+                                    {{ my_assignment_data.solved_count }}/{{ my_assignment_data.required_count }} Solved
+                                </span>
+                            </div>
+                            <div class="w-full bg-zinc-100 rounded-full h-2 overflow-hidden border border-zinc-200">
+                                <div class="h-full rounded-full transition-all duration-500 {% if my_assignment_data.progress_pct >= 100 %}bg-emerald-500{% else %}bg-sky-500{% endif %}"
+                                     style="width: {{ my_assignment_data.progress_pct }}%;"></div>
+                            </div>
+                        </div>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
             <!-- Task-Specific Content: loaded dynamically via type map / task_type -->
-            {% if type_template %}
-                {% include type_template ignore missing %}
-            {% else %}
-                {% include [
-                    "tasks/types/" ~ (task.task_type | lower) ~ ".html",
-                    "tasks/types/default.html"
-                ] ignore missing %}
-            {% endif %}
+            {% include type_template | default("tasks/types/default.html") ignore missing %}
 
         </main>
     </div>
 
 </div>
+
+{% if current_user and current_user.is_coach() %}
+<!-- ── Edit Task Modal ──────────────────────────────────────── -->
+<div id="edit-task-modal" class="kotchy-modal hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-900/60 backdrop-blur-xs">
+    <div class="bg-white rounded-xl shadow-xl border border-zinc-200 max-w-lg w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div class="px-6 py-4 border-b border-zinc-200 flex items-center justify-between bg-zinc-50/50">
+            <div>
+                <h3 class="text-sm font-semibold text-zinc-900">Edit Task</h3>
+                <p class="text-xs text-zinc-500 font-mono mt-0.5">ID: #{{ task.id }} • {{ task.task_type }}</p>
+            </div>
+            <button type="button" onclick="Kotchy.closeModal('edit-task-modal')" class="text-zinc-400 hover:text-zinc-600 p-1 rounded-md hover:bg-zinc-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <form id="edit-task-form" data-task-id="{{ task.id }}" class="p-6 space-y-4">
+            <input type="hidden" name="task_type" value="{{ task.task_type }}">
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Task Title <span class="text-rose-500">*</span></label>
+                <input type="text" name="title" required value="{{ task.title }}"
+                       class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Description</label>
+                <textarea name="description" rows="2"
+                          class="w-full px-3 py-2 rounded-lg border border-zinc-300 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500">{{ task.description or '' }}</textarea>
+            </div>
+
+            {% if task.task_type == 'CF_CONTEST' %}
+            <div class="p-3.5 bg-zinc-50 rounded-lg border border-zinc-200/80 space-y-3">
+                <span class="text-xs font-semibold text-zinc-800 uppercase tracking-wider block font-mono">Contest Configuration</span>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-600 mb-1">Contest ID <span class="text-rose-500">*</span></label>
+                        <input type="number" name="contest_id" required value="{{ task.config.get('contest_id', '') }}"
+                               class="w-full px-3 py-1.5 rounded border border-zinc-300 text-xs font-mono focus:outline-none focus:border-zinc-900">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-zinc-600 mb-1">Min Solved</label>
+                        <input type="number" name="min_solved" min="0" value="{{ task.config.get('min_solved', 1) }}"
+                               class="w-full px-3 py-1.5 rounded border border-zinc-300 text-xs font-mono focus:outline-none focus:border-zinc-900">
+                        <p class="text-[10px] text-zinc-400 mt-0.5">0 = Require solving whole contest.</p>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-600 mb-1">Access Type</label>
+                    <select name="access_type" class="w-full px-3 py-1.5 rounded border border-zinc-300 text-xs focus:outline-none focus:border-zinc-900 bg-white">
+                        <option value="public" {% if task.config.get('access_type') == 'public' %}selected{% endif %}>Public (standard contest)</option>
+                        <option value="private_managed" {% if task.config.get('access_type') == 'private_managed' %}selected{% endif %}>Private Managed (API signed)</option>
+                    </select>
+                </div>
+            </div>
+            {% elif task.task_type == 'CF_SHEET' %}
+            <div class="p-3.5 bg-zinc-50 rounded-lg border border-zinc-200/80 space-y-3">
+                <span class="text-xs font-semibold text-zinc-800 uppercase tracking-wider block font-mono">Sheet Configuration</span>
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-600 mb-1">Problem Identifiers (comma/space-separated) <span class="text-rose-500">*</span></label>
+                    <input type="text" name="problems" required value="{{ task.config.get('problems', []) | join(', ') }}"
+                           class="w-full px-3 py-1.5 rounded border border-zinc-300 text-xs font-mono focus:outline-none focus:border-zinc-900">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-medium text-zinc-600 mb-1">Min Solved Required</label>
+                    <input type="number" name="min_solved_count" min="1" value="{{ task.config.get('min_solved_count', 1) }}"
+                           class="w-full px-3 py-1.5 rounded border border-zinc-300 text-xs font-mono focus:outline-none focus:border-zinc-900">
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-zinc-100">
+                <button type="button" onclick="Kotchy.closeModal('edit-task-modal')"
+                        class="px-3.5 py-1.5 rounded-lg border border-zinc-300 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium shadow-xs shadow-sky-600/20 transition-colors">
+                    Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -232,6 +417,32 @@
         window.ALL_STUDENTS = JSON.parse(document.getElementById('all-students-json').textContent || '[]');
     } catch (e) {
         window.ALL_STUDENTS = [];
+    }
+
+    const assignForm = document.getElementById('assign-students-form');
+    if (assignForm) {
+        assignForm.addEventListener('submit', (e) => {
+            const taskId = parseInt(assignForm.getAttribute('data-task-id'), 10);
+            Kotchy.Assignment.submitBatchAssign(e, taskId);
+        });
+    }
+
+    const editForm = document.getElementById('edit-task-form');
+    if (editForm) {
+        editForm.addEventListener('submit', (e) => {
+            const taskId = parseInt(editForm.getAttribute('data-task-id'), 10);
+            Kotchy.Task.update(e, taskId);
+        });
+    }
+
+    const delTaskBtn = document.querySelector('.delete-task-btn');
+    if (delTaskBtn) {
+        delTaskBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const taskId = parseInt(delTaskBtn.getAttribute('data-task-id'), 10);
+            const taskTitle = delTaskBtn.getAttribute('data-task-title') || '';
+            Kotchy.Task.delete(taskId, taskTitle);
+        });
     }
 </script>
 {% endblock %}

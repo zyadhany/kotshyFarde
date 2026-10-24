@@ -1,0 +1,47 @@
+<!-- ── Add Student Modal (Shared Component) ─────────────────── -->
+<div id="add-student-modal" class="kotchy-modal hidden fixed inset-0 z-50 modal-overlay items-center justify-center p-4">
+    <div class="bg-white border border-zinc-200 max-w-md w-full rounded-lg p-5 shadow-lg">
+        <div class="flex items-center justify-between pb-3 border-b border-zinc-100">
+            <h3 class="text-sm font-bold text-zinc-900">Add New Student</h3>
+            <button type="button" onclick="Kotchy.closeModal('add-student-modal')" class="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+        </div>
+
+        <form onsubmit="Kotchy.Student.submitAdd(event)" class="mt-4 space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Username *</label>
+                <input type="text" name="username" required placeholder="e.g. tourist"
+                       class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-zinc-700 mb-1">Email Address *</label>
+                <input type="email" name="email" required placeholder="e.g. tourist@codeforces.com"
+                       class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900">
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">Codeforces Handle</label>
+                    <input type="text" name="cf_handle" placeholder="tourist"
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-700 mb-1">VJudge Handle</label>
+                    <input type="text" name="vjudge_handle" placeholder="tourist_vj"
+                           class="w-full px-2.5 py-1.5 rounded border border-zinc-300 text-xs text-zinc-900 focus:outline-none focus:border-zinc-900 font-mono">
+                </div>
+            </div>
+
+            <div class="pt-3 flex items-center justify-end gap-2 border-t border-zinc-100">
+                <button type="button" onclick="Kotchy.closeModal('add-student-modal')"
+                        class="px-3 py-1.5 rounded border border-zinc-300 text-xs font-medium text-zinc-700 hover:bg-zinc-50">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-3 py-1.5 rounded bg-zinc-900 text-white text-xs font-medium hover:bg-zinc-800">
+                    Add Student
+                </button>
+            </div>
+        </form>
+    </div>
+</div>

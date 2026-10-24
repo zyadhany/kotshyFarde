@@ -1,7 +1,15 @@
-- [DONE] No student can send to any api; all administrative and modifying APIs are restricted to coach accounts. Only necessary APIs (viewing personal assignments & running checks via HttpOnly cookies) are accessible to student accounts.
+- [DONE] for username let it shows as it's rate in codeforces (pubil:gree, expert:blue). same way in codeforces style
+    - also in student profile shows it's current rate and its max rate (of all time) 
 
 
-For futer never look at now at all
+
+For futer nevert look at it now at all
+
+- make profile image taken from codeforces account
+
+- fix mobile or deffernet defvices view
+
+- add buttom for announce problem to users
 
 - for contest show rate of problems if could find it
 
@@ -25,12 +33,24 @@ For futer never look at now at all
 
 - make streak or date that show everyone what he did and when
 
+
 - make Blitz_Page
 - Make ChessForces Page
     - chess game that each round has time like 30sec
     - when go eat anothe pone they give you problem to solve, the one who solve problem first eat the other
 
+- name colors (shows as codeforces)
+
 - rating view for user
+
+- make new task type of get to new rank
+
+- Make an achivment page
+
+- contest
+    - if provide 0 min solve (he has to solve the whole contest)
+
+- at conest page make direct link to codeforces standing with kotch fardy List
 
 Login page
 -   auntactors
