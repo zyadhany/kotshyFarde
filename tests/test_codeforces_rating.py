@@ -14,7 +14,9 @@ from app.core.config import settings
 from app.core.database import engine
 from app.models.user import User
 from app.services.codeforces_api import (
+    CodeforcesService,
     clear_user_ratings_cache,
+    codeforces_service,
     get_rating_class,
     get_rating_color,
     get_rating_title,
@@ -319,3 +321,36 @@ def test_user_cf_title_photo_normalization():
     with patch("app.services.codeforces_api._request", return_value=[mock_data]):
         assert u.cf_title_photo == "https://codeforces.com/userpic/123/title/abc.jpg"
         assert u.cf_avatar_url == "https://codeforces.com/userpic/123/avatar/def.jpg"
+
+
+def test_codeforces_service_class_instance_and_context_manager():
+    """Verify that CodeforcesService can be instantiated directly, used as a context manager,
+    re-uses HTTP connections, and provides identical helper methods."""
+    custom_service = CodeforcesService(
+        base_url="https://codeforces.com/api",
+        min_request_interval=0.01,
+        timeout=10.0,
+        api_key="dummy_key",
+        api_secret="dummy_secret",
+    )
+    assert custom_service.base_url == "https://codeforces.com/api"
+    assert custom_service.min_request_interval == 0.01
+    assert custom_service.timeout == 10.0
+
+    # Test static helper methods on class and instance
+    assert custom_service.get_rating_class(1550) == "cf-user-specialist"
+    assert CodeforcesService.get_rating_class(1950) == "cf-user-candidate-master"
+    assert custom_service.parse_problem_id("158A") == (158, "A")
+    assert custom_service.standardize_verdict("OK") == "ACCEPTED"
+
+    # Test context manager and client cleanup
+    with custom_service as s:
+        client = s.client
+        assert client is not None
+        assert not client.is_closed
+
+    # After exit, client should be closed
+    assert custom_service._client is None
+
+    # Test singleton instance availability
+    assert isinstance(codeforces_service, CodeforcesService)
